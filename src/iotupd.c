@@ -15,8 +15,11 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#define MY_HARDCODED_CHANNEL "wibble"
+#define MY_HARDCODED_CHANNEL "wibble" /* FIXME */
 
+/* IPv6 path discovery isn't much use for multicast and
+ * we don't want to receive a bunch of Packet Too Big messages
+ * so we'll use a fixed MTU of 1280 - headers + extensions => ~1200 */
 #define MTU_FIXED 1200
 
 lc_ctx_t *ctx = NULL;
@@ -58,10 +61,6 @@ int main(int argc, char **argv)
 	sock = lc_socket_new(ctx);
 	chan = lc_channel_new(ctx, MY_HARDCODED_CHANNEL);
 	lc_channel_bind(sock, chan);
-
-	/* IPv6 path discovery isn't much use for multicast and
-	 * we don't want to receive a bunch of Packet Too Big messages
-	 * so we'll use a fixed MTU of 1280 - headers + extensions => ~1200 */
 
 	memset(&f, 0, sizeof(iot_frame_t));
 
