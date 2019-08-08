@@ -57,6 +57,8 @@ int main(int argc, char **argv)
 		return IOTD_ERROR_MMAP_FAIL;
 	}
 
+	/* TODO: signal handlers */
+
 	ctx = lc_ctx_new();
 	sock = lc_socket_new(ctx);
 	chan = lc_channel_new(ctx, MY_HARDCODED_CHANNEL);
@@ -65,7 +67,6 @@ int main(int argc, char **argv)
 	memset(&f, 0, sizeof(iot_frame_t));
 
 	for (i = 0; i <= sb.st_size; i += MTU_FIXED) {
-
 		f.op = 0; /* TODO: data opcode */
 	
 		if ((i + MTU_FIXED) > sb.st_size)
@@ -73,12 +74,10 @@ int main(int argc, char **argv)
 		else
 			f.data.len = MTU_FIXED;
 
-		printf("sending %i - %i\n", i, (int)(i+f.data.len));
+		logmsg(LOG_DEBUG, "sending %i - %i\n", i, (int)(i+f.data.len));
 
 		f.data.data = map + i;
-
 		lc_msg_init_data(&msg, &f, sizeof(f), NULL, NULL);
-
 		lc_msg_send(chan, &msg);
 
 		/* TODO: occasionally send a checksum packet */
@@ -87,10 +86,10 @@ int main(int argc, char **argv)
 
 	logmsg(LOG_DEBUG, "%lld bytes sent", (long long)sb.st_size);
 
+	/* clean up */
 	lc_channel_free(chan);
 	lc_socket_close(sock);
 	lc_ctx_free(ctx);
-
 	munmap(map, sb.st_size);
 
 	return 0;
