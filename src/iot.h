@@ -13,5 +13,7 @@ typedef struct iot_file_t {
 
 typedef struct iot_frame_t {
 	uint8_t		op;		/* opcode */
+	u_int64_t	size;		/* full file size */
+	u_int64_t	off;		/* offset */
 	iot_val_t	data;		/* data */
 } __attribute__((__packed__)) iot_frame_t;

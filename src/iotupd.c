@@ -68,13 +68,15 @@ int main(int argc, char **argv)
 
 	for (i = 0; i <= sb.st_size; i += MTU_FIXED) {
 		f.op = 0; /* TODO: data opcode */
+		f.size = sb.st_size;
+		f.off = i;
 	
 		if ((i + MTU_FIXED) > sb.st_size)
 			f.data.len = sb.st_size - i;
 		else
 			f.data.len = MTU_FIXED;
 
-		logmsg(LOG_DEBUG, "sending %i - %i\n", i, (int)(i+f.data.len));
+		logmsg(LOG_DEBUG, "sending %i - %i", i, (int)(i+f.data.len));
 
 		f.data.data = map + i;
 		lc_msg_init_data(&msg, &f, sizeof(f), NULL, NULL);
