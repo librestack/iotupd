@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "err.h"
 #include "iot.h"
@@ -38,7 +38,7 @@ int main(int argc, char **argv)
 		fprintf(stderr, "usage: %s <file>\n", argv[0]);
 		return IOTD_ERROR_INVALID_ARGS;
 	}
-	
+
 	if ((fd = open(argv[1], O_RDONLY)) == -1) {
 		logmsg(LOG_ERROR, "Unable to open file '%s'", argv[1]);
 		return IOTD_ERROR_FILE_OPEN_FAIL;
@@ -70,7 +70,7 @@ int main(int argc, char **argv)
 		f.op = 0; /* TODO: data opcode */
 		f.size = sb.st_size;
 		f.off = i;
-	
+
 		if ((i + MTU_FIXED) > sb.st_size)
 			f.len = sb.st_size - i;
 		else
