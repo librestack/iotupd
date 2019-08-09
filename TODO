@@ -1,0 +1,6 @@
+replace hardcoded channel
+encryption
+logging
+stats
+handle signals
+daemonize

@@ -17,11 +17,6 @@
 
 #define MY_HARDCODED_CHANNEL "wibble" /* FIXME */
 
-/* IPv6 path discovery isn't much use for multicast and
- * we don't want to receive a bunch of Packet Too Big messages
- * so we'll use a fixed MTU of 1280 - headers + extensions => ~1200 */
-#define MTU_FIXED 1200
-
 lc_ctx_t *ctx = NULL;
 
 int main(int argc, char **argv)
@@ -29,6 +24,7 @@ int main(int argc, char **argv)
 	int i, fd;
 	struct stat sb;
 	struct iot_frame_t f;
+	byte fhash[HASHSIZE] = {};
 	char *map;
 	lc_socket_t * sock = NULL;
 	lc_channel_t * chan = NULL;
@@ -57,6 +53,9 @@ int main(int argc, char **argv)
 		return IOTD_ERROR_MMAP_FAIL;
 	}
 
+	/* calculate file hash */
+	hash(fhash, map, sb.st_size);
+
 	/* TODO: signal handlers */
 
 	ctx = lc_ctx_new();
@@ -66,25 +65,26 @@ int main(int argc, char **argv)
 
 	memset(&f, 0, sizeof(iot_frame_t));
 
-	for (i = 0; i <= sb.st_size; i += MTU_FIXED) {
-		f.op = 0; /* TODO: data opcode */
-		f.size = sb.st_size;
-		f.off = i;
+	while (1) {
+		for (i = 0; i <= sb.st_size; i += MTU_FIXED) {
+			f.op = 0; /* TODO: data opcode */
+			f.size = sb.st_size;
+			f.off = i;
 
-		if ((i + MTU_FIXED) > sb.st_size)
-			f.len = sb.st_size - i;
-		else
-			f.len = MTU_FIXED;
+			if ((i + MTU_FIXED) > sb.st_size)
+				f.len = sb.st_size - i;
+			else
+				f.len = MTU_FIXED;
 
-		logmsg(LOG_DEBUG, "sending %i - %i", i, (int)(i+f.len));
+			logmsg(LOG_DEBUG, "sending %i - %i", i, (int)(i+f.len));
 
-		memcpy(f.data, map + i, f.len);
-		lc_msg_init_data(&msg, &f, sizeof(f), NULL, NULL);
-		lc_msg_send(chan, &msg);
+			memcpy(f.hash, fhash, HASHSIZE);
+			memcpy(f.data, map + i, f.len);
 
-		/* TODO: occasionally send a checksum packet */
-
-	} /* TODO: loop forever */
+			lc_msg_init_data(&msg, &f, sizeof(f), NULL, NULL);
+			lc_msg_send(chan, &msg);
+		}
+	}
 
 	logmsg(LOG_DEBUG, "%lld bytes sent", (long long)sb.st_size);
 

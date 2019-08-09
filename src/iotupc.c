@@ -14,6 +14,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <wolfssl/ssl.h>
 
 #define MY_HARDCODED_CHANNEL "wibble" /* FIXME */
 
@@ -22,9 +23,9 @@ int main(int argc, char **argv)
 	int fd = 0;
 	int ret = 0;
 	struct stat sb;
-	struct iot_file_t infile;
 	struct iot_frame_t *f;
 	char *map = NULL;
+	byte fhash[HASHSIZE];
 	u_int64_t bwrit = 0;
 	lc_ctx_t *ctx = NULL;
 	lc_socket_t * sock = NULL;
@@ -53,18 +54,17 @@ int main(int argc, char **argv)
 	lc_channel_bind(sock, chan);
 	lc_channel_join(chan);
 
-	while (1) {
+	for (lc_msg_init(&msg);;lc_msg_free(&msg)) {
 		lc_msg_recv(sock, &msg);
 		logmsg(LOG_DEBUG, "message received");	
 		f = msg.data;
-		infile.size = f->size;
 		if (!map) { /* we have our first packet, so create the map */
-			if (ftruncate(fd, infile.size) != 0) {
+			if (ftruncate(fd, f->size) != 0) {
 				err_print(0, errno, "ftruncate()");
 				ret = IOTD_ERROR_MMAP_FAIL;
 				goto socket_close;
 			}
-			map = mmap(NULL, infile.size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+			map = mmap(NULL, f->size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
 			if (map == MAP_FAILED) {
 				logmsg(LOG_ERROR, "mmap() failed: %s", strerror(errno));
 				ret = IOTD_ERROR_MMAP_FAIL;
@@ -81,14 +81,26 @@ int main(int argc, char **argv)
 		bwrit += f->len;
 		logmsg(LOG_DEBUG, "bwrit: %lld", (long long)bwrit);
 
-		if (infile.size <= bwrit) { /* enough data, are we done? */
-			logmsg(LOG_DEBUG, "all data received");
-			/* TODO: checksum */
-			break;
-		}	
+		if (f->size <= bwrit) { /* enough data, are we done? */
+			logmsg(LOG_DEBUG, "checking hash...");
+			hash(fhash, map, f->size);
+
+			/* TEMP: print hash */
+			for (int i = 0; i < HASHSIZE; ++i) {
+				printf("%02x", ((unsigned char *)fhash)[i]);
+			}
+			printf("\n");
+			for (int i = 0; i < HASHSIZE; ++i) {
+				printf("%02x", ((unsigned char *)f->hash)[i]);
+			}
+			printf("\n");
+			if (memcmp(fhash, f->hash, HASHSIZE) == 0) break;
+
+		}
 	}
-	msync(map, infile.size, MS_SYNC);
-	munmap(map, infile.size);
+	msync(map, f->size, MS_SYNC);
+	munmap(map, f->size);
+	lc_msg_free(&msg);
 socket_close:
 	lc_channel_free(chan);
 	lc_socket_close(sock);
