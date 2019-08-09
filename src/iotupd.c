@@ -72,13 +72,13 @@ int main(int argc, char **argv)
 		f.off = i;
 	
 		if ((i + MTU_FIXED) > sb.st_size)
-			f.data.len = sb.st_size - i;
+			f.len = sb.st_size - i;
 		else
-			f.data.len = MTU_FIXED;
+			f.len = MTU_FIXED;
 
-		logmsg(LOG_DEBUG, "sending %i - %i", i, (int)(i+f.data.len));
+		logmsg(LOG_DEBUG, "sending %i - %i", i, (int)(i+f.len));
 
-		f.data.data = map + i;
+		memcpy(f.data, map + i, f.len);
 		lc_msg_init_data(&msg, &f, sizeof(f), NULL, NULL);
 		lc_msg_send(chan, &msg);
 

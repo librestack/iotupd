@@ -3,17 +3,22 @@
 PROGRAM:=iotup
 CLIENT:=$(PROGRAM)c
 SERVER:=$(PROGRAM)d
-OBJECTS:=$(SERVER).o err.o log.o misc.o
+OBJECTS:=err.o log.o misc.o
 LIBS:=-llibrecast
 
 .PHONY:		all clean
 
-all:		$(SERVER)
+all:		$(CLIENT) $(SERVER)
 
-$(SERVER):	$(OBJECTS)
-		$(CC) $(LDFLAGS) -o $(SERVER) $(OBJECTS) $(LIBS)
+$(CLIENT):	$(OBJECTS) $(CLIENT).o
+		$(CC) $(LDFLAGS) -o $(CLIENT) $(CLIENT).o $(OBJECTS) $(LIBS)
 
-$(SERVER).o:	$(SERVER).c $(SERVER).h
+$(SERVER):	$(OBJECTS) $(SERVER).o
+		$(CC) $(LDFLAGS) -o $(SERVER) $(SERVER).o $(OBJECTS) $(LIBS)
+
+$(CLIENT).o:	$(CLIENT).c $(CLIENT).h iot.h
+
+$(SERVER).o:	$(SERVER).c $(SERVER).h iot.h
 
 err.o:		err.c err.h
 
