@@ -15,7 +15,7 @@
 /* IPv6 path discovery isn't much use for multicast and
  * we don't want to receive a bunch of Packet Too Big messages
  * so we'll use a fixed MTU of 1280 - headers + extensions => ~1200 */
-#define MTU_FIXED 1200
+#define MTU_FIXED 1194
 
 typedef struct iot_file_t {
 	off_t	size;			/* Total size, in bytes */
