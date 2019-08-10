@@ -72,14 +72,14 @@ int main(int argc, char **argv)
 			}
 		}
 		logmsg(LOG_DEBUG, "opcode: %i", (int)f->op);
-		logmsg(LOG_DEBUG, "filesize: %lld", (long long)f->size);
 		logmsg(LOG_DEBUG, "offset: %lld", (long long)f->off);
 		logmsg(LOG_DEBUG, "length: %lld", (long long)f->len);
 
 		/* write some data */
 		memcpy(map + f->off, f->data, f->len);
 		bwrit += f->len;
-		logmsg(LOG_DEBUG, "bwrit: %lld", (long long)bwrit);
+		logmsg(LOG_DEBUG, "bwritten: %lld", (long long)bwrit);
+		logmsg(LOG_DEBUG, "filesize: %lld", (long long)f->size);
 
 		if (f->size <= bwrit) { /* enough data, are we done? */
 			logmsg(LOG_DEBUG, "checking hash...");
@@ -95,8 +95,8 @@ int main(int argc, char **argv)
 			}
 			printf("\n");
 			if (memcmp(fhash, f->hash, HASHSIZE) == 0) break;
-
 		}
+		msync(map, f->size, MS_ASYNC);
 	}
 	msync(map, f->size, MS_SYNC);
 	munmap(map, f->size);

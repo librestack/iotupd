@@ -17,6 +17,11 @@
  * so we'll use a fixed MTU of 1280 - headers + extensions => ~1200 */
 #define MTU_FIXED 1194
 
+/* with no congestion control, we can't just send full throttle
+ * may need to have several streams depending on device and recv buffer
+ * for now, just put a delay between packets */
+#define PKT_DELAY 500 /* microseconds */
+
 typedef struct iot_file_t {
 	off_t	size;			/* Total size, in bytes */
 } iot_file_t;

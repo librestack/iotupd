@@ -83,9 +83,9 @@ int main(int argc, char **argv)
 
 			lc_msg_init_data(&msg, &f, sizeof(f), NULL, NULL);
 			lc_msg_send(chan, &msg);
+			usleep(PKT_DELAY);
 		}
 	}
-
 	logmsg(LOG_DEBUG, "%lld bytes sent", (long long)sb.st_size);
 
 	/* clean up */
