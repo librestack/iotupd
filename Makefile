@@ -6,11 +6,17 @@ export PREFIX
 CFLAGS += -O -Wall -Werror -g
 export CFLAGS
 
+BIN_PATH = $(PREFIX)/sbin
+export BIN_PATH
+
 .PHONY: all clean src
 
 all:	src
 
 clean:
+	@$(MAKE) -C src $@
+
+realclean:
 	@$(MAKE) -C src $@
 
 install:

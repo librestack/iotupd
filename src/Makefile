@@ -6,7 +6,7 @@ SERVER:=$(PROGRAM)d
 OBJECTS:=err.o iot.o log.o misc.o
 LIBS:=-llibrecast -lwolfssl
 
-.PHONY:		all clean
+.PHONY:		all clean realclean
 
 all:		$(CLIENT) $(SERVER)
 
@@ -29,4 +29,11 @@ log.o:		log.c log.h
 misc.o:		misc.c misc.h
 
 clean:
-		rm -f *.o $(SERVER)
+		rm -f *.o
+
+realclean:
+		rm -f *.o $(CLIENT) $(SERVER)
+
+install:	all
+		install -d $(BIN_PATH)
+		install $(CLIENT) $(SERVER) $(BIN_PATH)/
