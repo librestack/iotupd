@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <librecast.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18,16 +19,33 @@
 #define MY_HARDCODED_CHANNEL "wibble" /* FIXME */
 
 lc_ctx_t *ctx = NULL;
+lc_socket_t * sock = NULL;
+lc_channel_t * chan = NULL;
+char *map;
+struct stat sb;
+
+void sigint_handler (int signo);
+void terminate();
+
+void sigint_handler (int signo)
+{
+	terminate();
+}
+
+void terminate()
+{
+	lc_channel_free(chan);
+	lc_socket_close(sock);
+	lc_ctx_free(ctx);
+	munmap(map, sb.st_size);
+	_exit(0);
+}
 
 int main(int argc, char **argv)
 {
-	int i, fd;
-	struct stat sb;
+	int fd;
 	struct iot_frame_t f;
 	byte fhash[HASHSIZE] = {};
-	char *map;
-	lc_socket_t * sock = NULL;
-	lc_channel_t * chan = NULL;
 	lc_message_t msg;
 
 	if (argc != 2) {
@@ -56,7 +74,7 @@ int main(int argc, char **argv)
 	/* calculate file hash */
 	hash(fhash, map, sb.st_size);
 
-	/* TODO: signal handlers */
+	signal(SIGINT, sigint_handler);
 
 	ctx = lc_ctx_new();
 	sock = lc_socket_new(ctx);
@@ -66,7 +84,7 @@ int main(int argc, char **argv)
 	memset(&f, 0, sizeof(iot_frame_t));
 
 	while (1) {
-		for (i = 0; i <= sb.st_size; i += MTU_FIXED) {
+		for (int i = 0; i <= sb.st_size; i += MTU_FIXED) {
 			f.op = 0; /* TODO: data opcode */
 			f.size = sb.st_size;
 			f.off = i;
@@ -83,16 +101,14 @@ int main(int argc, char **argv)
 
 			lc_msg_init_data(&msg, &f, sizeof(f), NULL, NULL);
 			lc_msg_send(chan, &msg);
+#ifdef PKT_DELAY
 			usleep(PKT_DELAY);
+#endif
 		}
 	}
-	logmsg(LOG_DEBUG, "%lld bytes sent", (long long)sb.st_size);
-
-	/* clean up */
-	lc_channel_free(chan);
-	lc_socket_close(sock);
-	lc_ctx_free(ctx);
-	munmap(map, sb.st_size);
+	terminate();
 
 	return 0;
 }
+
+
