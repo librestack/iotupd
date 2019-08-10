@@ -87,7 +87,7 @@ int main(int argc, char **argv)
 		logmsg(LOG_DEBUG, "received: %lld bytes", (long long)bwrit);
 		logmsg(LOG_DEBUG, "filesize: %lld bytes", (long long)f->size);
 
-		if (f->size <= bwrit) { /* enough data, are we done? */
+		if (f->size <= bwrit + binit) { /* enough data, are we done? */
 			if (crc_32((unsigned char *)map, f->size) == f->crc) {
 				logmsg(LOG_DEBUG, "checking hash...");
 				hash(fhash, map, f->size);
