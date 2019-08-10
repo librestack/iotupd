@@ -26,6 +26,7 @@ int main(int argc, char **argv)
 	struct iot_frame_t *f;
 	char *map = NULL;
 	byte fhash[HASHSIZE];
+	u_int64_t binit = 0;
 	u_int64_t bwrit = 0;
 	lc_ctx_t *ctx = NULL;
 	lc_socket_t * sock = NULL;
@@ -47,6 +48,10 @@ int main(int argc, char **argv)
 		logmsg(LOG_ERROR, "fstat() failed");
 		return IOTD_ERROR_FILE_STAT_FAIL;
 	}
+
+	/* determine size on disk, to see how much data we already have */
+	binit = 512 * sb.st_blocks;
+	logmsg(LOG_DEBUG, "file already contains: %lld bytes", (long long)binit);
 
 	ctx = lc_ctx_new();
 	sock = lc_socket_new(ctx);
@@ -78,10 +83,10 @@ int main(int argc, char **argv)
 		/* write some data */
 		memcpy(map + f->off, f->data, f->len);
 		bwrit += f->len;
-		logmsg(LOG_DEBUG, "bwritten: %lld", (long long)bwrit);
-		logmsg(LOG_DEBUG, "filesize: %lld", (long long)f->size);
+		logmsg(LOG_DEBUG, "received: %lld bytes", (long long)bwrit);
+		logmsg(LOG_DEBUG, "filesize: %lld bytes", (long long)f->size);
 
-		if (f->size <= bwrit) { /* enough data, are we done? */
+		if (f->size <= bwrit + binit) { /* enough data, are we done? */
 			logmsg(LOG_DEBUG, "checking hash...");
 			hash(fhash, map, f->size);
 
