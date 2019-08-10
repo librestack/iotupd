@@ -16,9 +16,9 @@ $(CLIENT):	$(OBJECTS) $(CLIENT).o
 $(SERVER):	$(OBJECTS) $(SERVER).o
 		$(CC) $(LDFLAGS) -o $(SERVER) $(SERVER).o $(OBJECTS) $(LIBS)
 
-$(CLIENT).o:	$(CLIENT).c $(CLIENT).h
+$(CLIENT).o:	$(CLIENT).c $(CLIENT).h $(OBJECTS)
 
-$(SERVER).o:	$(SERVER).c $(SERVER).h
+$(SERVER).o:	$(SERVER).c $(SERVER).h $(OBJECTS)
 
 err.o:		err.c err.h
 
