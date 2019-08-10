@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "crc32.h"
 #include "err.h"
 #include "iot.h"
 #include "iotupc.h"
@@ -86,20 +87,22 @@ int main(int argc, char **argv)
 		logmsg(LOG_DEBUG, "received: %lld bytes", (long long)bwrit);
 		logmsg(LOG_DEBUG, "filesize: %lld bytes", (long long)f->size);
 
-		if (f->size <= bwrit + binit) { /* enough data, are we done? */
-			logmsg(LOG_DEBUG, "checking hash...");
-			hash(fhash, map, f->size);
+		if (f->size <= bwrit) { /* enough data, are we done? */
+			if (crc_32((unsigned char *)map, f->size) == f->crc) {
+				logmsg(LOG_DEBUG, "checking hash...");
+				hash(fhash, map, f->size);
 
-			/* TEMP: print hash */
-			for (int i = 0; i < HASHSIZE; ++i) {
-				printf("%02x", ((unsigned char *)fhash)[i]);
+				/* TEMP: print hash */
+				for (int i = 0; i < HASHSIZE; ++i) {
+					printf("%02x", ((unsigned char *)fhash)[i]);
+				}
+				printf("\n");
+				for (int i = 0; i < HASHSIZE; ++i) {
+					printf("%02x", ((unsigned char *)f->hash)[i]);
+				}
+				printf("\n");
+				if (memcmp(fhash, f->hash, HASHSIZE) == 0) break;
 			}
-			printf("\n");
-			for (int i = 0; i < HASHSIZE; ++i) {
-				printf("%02x", ((unsigned char *)f->hash)[i]);
-			}
-			printf("\n");
-			if (memcmp(fhash, f->hash, HASHSIZE) == 0) break;
 		}
 		msync(map, f->size, MS_ASYNC);
 	}

@@ -28,6 +28,7 @@ typedef struct iot_file_t {
 
 typedef struct iot_frame_t {
 	uint8_t		op;				/* opcode */
+	u_int32_t	crc;				/* crc32 of file */
 	u_int64_t	size;				/* full file size */
 	u_int64_t	off;				/* offset */
 	size_t		len;				/* length of this chunk */

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "crc32.h"
 #include "err.h"
 #include "iot.h"
 #include "iotupd.h"
@@ -45,6 +46,7 @@ int main(int argc, char **argv)
 {
 	int fd;
 	struct iot_frame_t f;
+	uint32_t crc;
 	byte fhash[HASHSIZE] = {};
 	lc_message_t msg;
 
@@ -72,6 +74,7 @@ int main(int argc, char **argv)
 	}
 
 	/* calculate file hash */
+	crc = crc_32((unsigned char *)map, sb.st_size);
 	hash(fhash, map, sb.st_size);
 
 	signal(SIGINT, sigint_handler);
@@ -86,6 +89,7 @@ int main(int argc, char **argv)
 	while (1) {
 		for (int i = 0; i <= sb.st_size; i += MTU_FIXED) {
 			f.op = 0; /* TODO: data opcode */
+			f.crc = crc;
 			f.size = sb.st_size;
 			f.off = i;
 

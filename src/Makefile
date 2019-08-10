@@ -3,7 +3,7 @@
 PROGRAM:=iotup
 CLIENT:=$(PROGRAM)c
 SERVER:=$(PROGRAM)d
-OBJECTS:=err.o iot.o log.o misc.o
+OBJECTS:=crc32.o err.o iot.o log.o misc.o
 LIBS:=-llibrecast -lwolfssl
 
 .PHONY:		all clean realclean
@@ -19,6 +19,8 @@ $(SERVER):	$(OBJECTS) $(SERVER).o
 $(CLIENT).o:	$(CLIENT).c $(CLIENT).h $(OBJECTS)
 
 $(SERVER).o:	$(SERVER).c $(SERVER).h $(OBJECTS)
+
+crc32.o:	crc32.c crc32.h
 
 err.o:		err.c err.h
 
