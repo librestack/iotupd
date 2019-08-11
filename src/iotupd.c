@@ -35,7 +35,6 @@ void sigint_handler (int signo)
 
 void terminate()
 {
-	lc_msg_free(&msg);
 	lc_channel_free(chan);
 	lc_socket_close(sock);
 	lc_ctx_free(ctx);
