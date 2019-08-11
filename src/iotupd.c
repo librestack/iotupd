@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "crc32.h"
 #include "err.h"
 #include "iot.h"
 #include "iotupd.h"
@@ -17,13 +16,13 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#define MY_HARDCODED_CHANNEL "wibble" /* FIXME */
-
-lc_ctx_t *ctx = NULL;
-lc_socket_t * sock = NULL;
-lc_channel_t * chan = NULL;
-char *map;
-struct stat sb;
+static lc_ctx_t *ctx = NULL;
+static lc_socket_t *sock = NULL;
+static lc_channel_t *chan = NULL;
+static lc_message_t msg;
+static int fd;
+static char *map;
+static struct stat sb;
 
 void sigint_handler (int signo);
 void terminate();
@@ -35,20 +34,19 @@ void sigint_handler (int signo)
 
 void terminate()
 {
+	lc_msg_free(&msg);
 	lc_channel_free(chan);
 	lc_socket_close(sock);
 	lc_ctx_free(ctx);
 	munmap(map, sb.st_size);
+	close(fd);
 	_exit(0);
 }
 
 int main(int argc, char **argv)
 {
-	int fd;
 	struct iot_frame_t f;
-	uint32_t crc;
 	byte fhash[HASHSIZE] = {};
-	lc_message_t msg;
 
 	if (argc != 2) {
 		fprintf(stderr, "usage: %s <file>\n", argv[0]);
@@ -74,7 +72,6 @@ int main(int argc, char **argv)
 	}
 
 	/* calculate file hash */
-	crc = crc_32((unsigned char *)map, sb.st_size);
 	hash(fhash, map, sb.st_size);
 
 	signal(SIGINT, sigint_handler);
@@ -89,7 +86,6 @@ int main(int argc, char **argv)
 	while (1) {
 		for (int i = 0; i <= sb.st_size; i += MTU_FIXED) {
 			f.op = 0; /* TODO: data opcode */
-			f.crc = crc;
 			f.size = sb.st_size;
 			f.off = i;
 
@@ -114,5 +110,3 @@ int main(int argc, char **argv)
 
 	return 0;
 }
-
-

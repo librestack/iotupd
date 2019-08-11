@@ -22,13 +22,14 @@
  * for now, just put a delay between packets */
 //#define PKT_DELAY 500 /* microseconds */
 
+#define MY_HARDCODED_CHANNEL "wibble" /* FIXME */
+
 typedef struct iot_file_t {
 	off_t	size;			/* Total size, in bytes */
 } iot_file_t;
 
 typedef struct iot_frame_t {
 	uint8_t		op;				/* opcode */
-	u_int32_t	crc;				/* crc32 of file */
 	u_int64_t	size;				/* full file size */
 	u_int64_t	off;				/* offset */
 	size_t		len;				/* length of this chunk */
