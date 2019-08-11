@@ -2,7 +2,6 @@
 
 #include "err.h"
 #include "iot.h"
-#include "iotupd.h"
 #include "log.h"
 #include <errno.h>
 #include <fcntl.h>
@@ -15,6 +14,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#define PROGRAM_NAME "iotupd"
 
 static lc_ctx_t *ctx = NULL;
 static lc_socket_t *sock = NULL;

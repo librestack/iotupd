@@ -2,7 +2,6 @@
 
 #include "err.h"
 #include "iot.h"
-#include "iotupc.h"
 #include "log.h"
 #include <assert.h>
 #include <errno.h>
@@ -18,6 +17,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <wolfssl/ssl.h>
+
+#define PROGRAM_NAME "iotupc"
 
 static pthread_t tchecksum;
 static pthread_t twriter;
