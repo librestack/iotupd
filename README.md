@@ -1,6 +1,6 @@
-# iotupd - IOT Update Client and Server
+# iotupd - IoT Update Client and Server
 
-Small client and server programs to demonstrate the idea of IOT updates over multicast.
+Small client and server programs to demonstrate the idea of IoT updates over multicast.
 
 The "server" is tiny.  It never needs to accept any connections, or listen on any ports.  It can sit behind a completely closed inbound firewall.  All it needs is to be able to send outbound UDP packets.
 
@@ -33,6 +33,6 @@ This is just a simple demo, not intended for production.  It could, however, be 
 
 You can run multiple servers at the same time, sending the same file.  A client joined via Any Source Multicast (ASM) can collect the packets from all servers at once.
 
-Alternatively, with Single Source Multicast (SSM), we only have to turn on one setting on all intervening routers (`ipv6 multicast-routing`) and we have functioning multicast with no requirement for Rendezvous Points (RP) to be configured.  The IOT device could use plain ol' unicast DNS to look up which host(s) to do the SSM join to.  Some SRV records would do the trick.
+Alternatively, with Single Source Multicast (SSM), we only have to turn on one setting on all intervening routers (`ipv6 multicast-routing`) and we have functioning multicast with no requirement for Rendezvous Points (RP) to be configured.  The IoT device could use plain ol' unicast DNS to look up which host(s) to do the SSM join to.  Some SRV records would do the trick.
 
-So in the case of an IOT provider who controls the whole network, they could implement this immediately with no transitional tunnelling needed.
+So in the case of an IoT provider who controls the whole network, they could implement this immediately with no transitional tunnelling needed.
