@@ -1,7 +1,7 @@
 replace hardcoded channel
+FEC
 progress bar
 encryption
 logging
 stats
-handle signals
 daemonize
