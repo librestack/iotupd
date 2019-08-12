@@ -21,6 +21,7 @@ static lc_ctx_t *ctx = NULL;
 static lc_socket_t *sock = NULL;
 static lc_channel_t *chan = NULL;
 static lc_message_t msg;
+static int running = 1;
 static int fd;
 static char *map;
 static struct stat sb;
@@ -30,7 +31,7 @@ void terminate();
 
 void sigint_handler (int signo)
 {
-	terminate();
+	running = 0;
 }
 
 void terminate()
@@ -83,8 +84,8 @@ int main(int argc, char **argv)
 
 	memset(&f, 0, sizeof(iot_frame_t));
 
-	while (1) {
-		for (int i = 0; i <= sb.st_size; i += MTU_FIXED) {
+	while (running) {
+		for (int i = 0; i <= sb.st_size && running; i += MTU_FIXED) {
 			f.op = 0; /* TODO: data opcode */
 			f.size = sb.st_size;
 			f.off = i;
