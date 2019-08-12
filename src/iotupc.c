@@ -24,7 +24,6 @@ static pthread_t tchecksum;
 static pthread_t twriter;
 static pthread_mutex_t dataready;
 static int complete = 0;
-static struct iot_frame_t *f = NULL;
 static int fd = 0;
 static char *map = NULL;
 static size_t maplen = 0;
@@ -34,15 +33,15 @@ static lc_socket_t * sock = NULL;
 static lc_channel_t * chan = NULL;
 static lc_message_t msg;
 
-void sigint_handler(int signo);
 void cleanup();
-void terminate();
+void sigint_handler(int signo);
 int thread_checksum(void *arg);
 int thread_writer(void *arg);
 
-void sigint_handler(int signo)
+void cancel_checksum_thread()
 {
-	terminate();
+	complete = 1;
+	pthread_mutex_unlock(&dataready);
 }
 
 void cleanup()
@@ -53,16 +52,9 @@ void cleanup()
 	close(fd);
 }
 
-void terminate()
+void sigint_handler(int signo)
 {
-	complete = 1;
-	pthread_mutex_unlock(&dataready);
-	pthread_cancel(tchecksum);
-	pthread_cancel(twriter);
-	pthread_join(tchecksum, NULL);
-	pthread_join(twriter, NULL);
-	cleanup();
-	_exit(0);
+	cancel_checksum_thread();
 }
 
 /* do all checksumming here in a separate thread to ensure it doesn't
@@ -73,7 +65,7 @@ int thread_checksum(void *arg)
 
 	pthread_mutex_lock(&dataready); /* wait here until writer says go */
 
-	while (complete != 1) {
+	while (!complete) {
 		logmsg(LOG_DEBUG, "checking hash...");
 		hash(fhash, map, maplen);
 
@@ -98,6 +90,7 @@ int thread_writer(void *arg)
 	u_int64_t binit = 0;
 	u_int64_t bwrit = 0;
 	struct stat sb;
+	struct iot_frame_t *f = NULL;
 
 	/* open/create file for writing */
 	if ((fd = open(arg, O_CREAT|O_RDWR, S_IRUSR|S_IWUSR)) == -1) {
@@ -117,7 +110,7 @@ int thread_writer(void *arg)
 	logmsg(LOG_DEBUG, "file already contains: %lld bytes", (long long)binit);
 
 	/* receive data and write to map */
-	for (lc_msg_init(&msg); complete == 0; lc_msg_free(&msg)) {
+	for (lc_msg_init(&msg); !complete; lc_msg_free(&msg)) {
 		lc_msg_recv(sock, &msg);
 		logmsg(LOG_DEBUG, "message received");	
 		f = msg.data;
@@ -153,7 +146,12 @@ int thread_writer(void *arg)
 	}
 
 exit_writer:
-	pthread_cancel(tchecksum);
+	cancel_checksum_thread();
+
+	/* sync file to disk and unmap */
+	msync(map, maplen, MS_SYNC);
+	munmap(map, maplen);
+
 	return ret;
 }
 
@@ -189,10 +187,6 @@ int main(int argc, char **argv)
 	pthread_cancel(twriter);
 	pthread_join(twriter, NULL);
 	pthread_mutex_destroy(&dataready);
-
-	/* sync file to disk and unmap */
-	msync(map, f->size, MS_SYNC);
-	munmap(map, f->size);
 
 	cleanup();
 
