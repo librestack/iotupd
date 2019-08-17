@@ -70,11 +70,11 @@ int thread_checksum(void *arg)
 		hash(fhash, map, maplen);
 
 		for (int i = 0; i < HASHSIZE; ++i) {
-			printf("%02x", ((unsigned char *)fhash)[i]);
+			printf("%02x", (unsigned char)fhash[i]);
 		}
 		printf("\n");
 		for (int i = 0; i < HASHSIZE; ++i) {
-			printf("%02x", ((unsigned char *)filehash)[i]);
+			printf("%02x", (unsigned char)filehash[i]);
 		}
 		printf("\n");
 
@@ -149,7 +149,6 @@ exit_writer:
 	cancel_checksum_thread();
 
 	/* sync file to disk and unmap */
-	msync(map, maplen, MS_SYNC);
 	munmap(map, maplen);
 
 	return ret;
