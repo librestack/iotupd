@@ -47,7 +47,6 @@ void terminate()
 int main(int argc, char **argv)
 {
 	struct iot_frame_t f;
-	byte fhash[HASHSIZE] = {};
 
 	if (argc != 2) {
 		fprintf(stderr, "usage: %s <file>\n", argv[0]);
@@ -72,9 +71,6 @@ int main(int argc, char **argv)
 		return IOTD_ERROR_MMAP_FAIL;
 	}
 
-	/* calculate file hash */
-	hash(fhash, map, sb.st_size);
-
 	signal(SIGINT, sigint_handler);
 
 	ctx = lc_ctx_new();
@@ -83,6 +79,9 @@ int main(int argc, char **argv)
 	lc_channel_bind(sock, chan);
 
 	memset(&f, 0, sizeof(iot_frame_t));
+
+	/* calculate file hash */
+	hash(f.hash, map, sb.st_size);
 
 	while (running) {
 		for (int i = 0; i <= sb.st_size && running; i += MTU_FIXED) {
@@ -97,7 +96,6 @@ int main(int argc, char **argv)
 
 			logmsg(LOG_DEBUG, "sending %i - %i", i, (int)(i+f.len));
 
-			memcpy(f.hash, fhash, HASHSIZE);
 			memcpy(f.data, map + i, f.len);
 
 			lc_msg_init_data(&msg, &f, sizeof(f), NULL, NULL);

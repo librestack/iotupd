@@ -2,7 +2,7 @@
 
 #include "iot.h"
 
-byte * hash(byte digest[HASHSIZE], char *data, size_t len)
+unsigned char * hash(unsigned char digest[HASHSIZE], char *data, size_t len)
 {
 	wc_Sha3 sha;
 

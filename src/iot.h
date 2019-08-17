@@ -33,8 +33,8 @@ typedef struct iot_frame_t {
 	u_int64_t	size;				/* full file size */
 	u_int64_t	off;				/* offset */
 	size_t		len;				/* length of this chunk */
-	char		hash[HASHSIZE];			/* SHA3 hash of file */
+	unsigned char	hash[HASHSIZE];			/* SHA3 hash of file */
 	char 		data[MTU_FIXED];		/* data */
 } __attribute__((__packed__)) iot_frame_t;
 
-byte * hash(byte digest[HASHSIZE], char *data, size_t len);
+unsigned char * hash(unsigned char digest[HASHSIZE], char *data, size_t len);
