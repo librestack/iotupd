@@ -1,4 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-License-Identifier: GPL-2.0-or-later 
+ * Copyright (c) 2019 Brett Sheffield <brett@gladserv.com> */
 
 #include <stdio.h>
 #include <stdlib.h>

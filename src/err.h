@@ -1,4 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-License-Identifier: GPL-2.0-or-later 
+ * Copyright (c) 2019 Brett Sheffield <brett@gladserv.com> */
 
 #ifndef __IOTD_ERR_H__
 #define __IOTD_ERR_H__ 1

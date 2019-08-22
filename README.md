@@ -36,3 +36,11 @@ You can run multiple servers at the same time, sending the same file.  A client 
 Alternatively, with Single Source Multicast (SSM), we only have to turn on one setting on all intervening routers (`ipv6 multicast-routing`) and we have functioning multicast with no requirement for Rendezvous Points (RP) to be configured.  The IoT device could use plain ol' unicast DNS to look up which host(s) to do the SSM join to.  Some SRV records would do the trick.
 
 So in the case of an IoT provider who controls the whole network, they could implement this immediately with no transitional tunnelling needed.
+
+## Authors
+
+Brett Sheffield
+
+## License
+
+This program is licensed under GPLv2 or any later version.
