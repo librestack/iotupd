@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
-# Copyright (c) 2019 Brett Sheffield <brett@gladserv.com>
+# Copyright (c) 2019-2021 Brett Sheffield <brett@gladserv.com>
 
 PROGRAM:=iotup
 CLIENT:=$(PROGRAM)c
 SERVER:=$(PROGRAM)d
 OBJECTS:=err.o iot.o log.o misc.o
-LIBS:=-llibrecast -lwolfssl -pthread
+LIBS:=-llibrecast -llsdb -lwolfssl -pthread
 
 .PHONY:		all clean realclean
 

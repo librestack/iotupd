@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later 
- * Copyright (c) 2019 Brett Sheffield <brett@gladserv.com> */
+ * Copyright (c) 2019-2021 Brett Sheffield <brett@gladserv.com> */
 
 #include "err.h"
 #include "iot.h"
@@ -48,6 +48,7 @@ void terminate()
 int main(int argc, char **argv)
 {
 	struct iot_frame_t f;
+	const int on = 1;
 
 	if (argc != 2) {
 		fprintf(stderr, "usage: %s <file>\n", argv[0]);
@@ -76,6 +77,7 @@ int main(int argc, char **argv)
 
 	ctx = lc_ctx_new();
 	sock = lc_socket_new(ctx);
+	lc_socket_setopt(sock, IPV6_MULTICAST_LOOP, &on, sizeof(on));
 	chan = lc_channel_new(ctx, MY_HARDCODED_CHANNEL);
 	lc_channel_bind(sock, chan);
 
