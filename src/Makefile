@@ -5,7 +5,7 @@ PROGRAM:=iotup
 CLIENT:=$(PROGRAM)c
 SERVER:=$(PROGRAM)d
 OBJECTS:=err.o iot.o log.o misc.o
-LIBS:=-llibrecast -llsdb -lwolfssl -pthread
+LIBS:=-llibrecast -lwolfssl -pthread
 
 .PHONY:		all clean realclean
 
