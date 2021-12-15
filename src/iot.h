@@ -4,14 +4,7 @@
 #include <stdint.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-
-/* disable warning in wolfssl - `./configure --enable-harden` does not work */
-#define WC_NO_HARDEN /* FIXME */
-#define WOLFSSL_SHA3
-
-#include <wolfssl/wolfcrypt/sha3.h>
-
-#define HASHSIZE WC_SHA3_224_DIGEST_SIZE
+#include <librecast/crypto.h>
 
 /* IPv6 path discovery isn't much use for multicast and
  * we don't want to receive a bunch of Packet Too Big messages

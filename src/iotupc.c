@@ -31,7 +31,6 @@ static unsigned char filehash[HASHSIZE];
 static lc_ctx_t *ctx = NULL;
 static lc_socket_t * sock = NULL;
 static lc_channel_t * chan = NULL;
-static lc_message_t msg;
 
 void cleanup();
 void sigint_handler(int signo);
@@ -61,7 +60,7 @@ void sigint_handler(int signo)
  * slow down reading from receive buffer */
 int thread_checksum(void *arg)
 {
-	byte fhash[HASHSIZE];
+	unsigned char fhash[HASHSIZE];
 
 	pthread_mutex_lock(&dataready); /* wait here until writer says go */
 
@@ -91,6 +90,7 @@ int thread_writer(void *arg)
 	u_int64_t bwrit = 0;
 	struct stat sb;
 	struct iot_frame_t *f = NULL;
+	char buf[sizeof (iot_frame_t)];
 
 	/* open/create file for writing */
 	if ((fd = open(arg, O_CREAT|O_RDWR, S_IRUSR|S_IWUSR)) == -1) {
@@ -110,10 +110,10 @@ int thread_writer(void *arg)
 	logmsg(LOG_DEBUG, "file already contains: %lld bytes", (long long)binit);
 
 	/* receive data and write to map */
-	for (lc_msg_init(&msg); !complete; lc_msg_free(&msg)) {
-		lc_msg_recv(sock, &msg);
+	while (!complete) {
+		lc_socket_recv(sock, buf, sizeof (iot_frame_t), 0);
 		logmsg(LOG_DEBUG, "message received");
-		f = msg.data;
+		f = (iot_frame_t *)buf;
 		if (!map) { /* we have our first packet, so create the map */
 			maplen = f->size;
 			memcpy(&filehash, f->hash, HASHSIZE);

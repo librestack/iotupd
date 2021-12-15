@@ -21,7 +21,6 @@
 static lc_ctx_t *ctx = NULL;
 static lc_socket_t *sock = NULL;
 static lc_channel_t *chan = NULL;
-static lc_message_t msg;
 static int running = 1;
 static int fd;
 static char *map;
@@ -101,8 +100,7 @@ int main(int argc, char **argv)
 
 			memcpy(f.data, map + i, f.len);
 
-			lc_msg_init_data(&msg, &f, sizeof(f), NULL, NULL);
-			lc_msg_send(chan, &msg);
+			lc_channel_send(chan, &f, sizeof(f), 0);
 #ifdef PKT_DELAY
 			usleep(PKT_DELAY);
 #endif
