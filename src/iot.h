@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later 
- * Copyright (c) 2019 Brett Sheffield <brett@gladserv.com> */
+ * Copyright (c) 2019-2021 Brett Sheffield <brett@gladserv.com> */
 
 #include <stdint.h>
 #include <sys/stat.h>
@@ -37,5 +37,3 @@ typedef struct iot_frame_t {
 	unsigned char	hash[HASHSIZE];			/* SHA3 hash of file */
 	char 		data[MTU_FIXED];		/* data */
 } __attribute__((__packed__)) iot_frame_t;
-
-unsigned char * hash(unsigned char digest[HASHSIZE], char *data, size_t len);

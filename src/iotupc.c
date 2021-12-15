@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later 
- * Copyright (c) 2019 Brett Sheffield <brett@gladserv.com> */
+ * Copyright (c) 2019-2021 Brett Sheffield <brett@gladserv.com> */
 
 #include "err.h"
 #include "iot.h"
@@ -17,7 +17,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <wolfssl/ssl.h>
 
 #define PROGRAM_NAME "iotupc"
 
@@ -28,7 +27,7 @@ static int complete = 0;
 static int fd = 0;
 static char *map = NULL;
 static size_t maplen = 0;
-static char filehash[HASHSIZE];
+static unsigned char filehash[HASHSIZE];
 static lc_ctx_t *ctx = NULL;
 static lc_socket_t * sock = NULL;
 static lc_channel_t * chan = NULL;
@@ -68,7 +67,7 @@ int thread_checksum(void *arg)
 
 	while (!complete) {
 		logmsg(LOG_DEBUG, "checking hash...");
-		hash(fhash, map, maplen);
+		hash_generic(fhash, HASHSIZE, (unsigned char *)map, maplen);
 
 		for (int i = 0; i < HASHSIZE; ++i) {
 			printf("%02x", (unsigned char)fhash[i]);
@@ -113,7 +112,7 @@ int thread_writer(void *arg)
 	/* receive data and write to map */
 	for (lc_msg_init(&msg); !complete; lc_msg_free(&msg)) {
 		lc_msg_recv(sock, &msg);
-		logmsg(LOG_DEBUG, "message received");	
+		logmsg(LOG_DEBUG, "message received");
 		f = msg.data;
 		if (!map) { /* we have our first packet, so create the map */
 			maplen = f->size;

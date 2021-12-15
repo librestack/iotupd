@@ -4,8 +4,8 @@
 PROGRAM:=iotup
 CLIENT:=$(PROGRAM)c
 SERVER:=$(PROGRAM)d
-OBJECTS:=err.o iot.o log.o misc.o
-LIBS:=-llibrecast -lwolfssl -pthread
+OBJECTS:=err.o log.o misc.o
+LIBS:=-llibrecast -pthread
 
 .PHONY:		all clean realclean
 
@@ -22,8 +22,6 @@ $(CLIENT).o:	$(CLIENT).c $(OBJECTS)
 $(SERVER).o:	$(SERVER).c $(OBJECTS)
 
 err.o:		err.c err.h
-
-iot.o:		iot.c iot.h
 
 log.o:		log.c log.h
 

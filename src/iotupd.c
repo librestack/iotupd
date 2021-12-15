@@ -84,7 +84,7 @@ int main(int argc, char **argv)
 	memset(&f, 0, sizeof(iot_frame_t));
 
 	/* calculate file hash */
-	hash(f.hash, map, sb.st_size);
+	hash_generic(f.hash, HASHSIZE, (unsigned char *)map, sb.st_size);
 
 	while (running) {
 		for (int i = 0; i <= sb.st_size && running; i += MTU_FIXED) {
