@@ -15,6 +15,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <net/if.h>
 
 #define PROGRAM_NAME "iotupd"
 
@@ -48,9 +49,10 @@ int main(int argc, char **argv)
 {
 	struct iot_frame_t f;
 	const int on = 1;
+	int ifindex = 0;
 
-	if (argc != 2) {
-		fprintf(stderr, "usage: %s <file>\n", argv[0]);
+	if (argc != 2 && argc != 3) {
+		fprintf(stderr, "usage: %s <file> [interface]\n", argv[0]);
 		return IOTD_ERROR_INVALID_ARGS;
 	}
 
@@ -72,10 +74,22 @@ int main(int argc, char **argv)
 		return IOTD_ERROR_MMAP_FAIL;
 	}
 
+	if (argc == 3) {
+		ifindex = if_nametoindex(argv[2]);
+		if (ifindex == 0) {
+			logmsg(LOG_ERROR, "Interface '%s' not found", argv[2]);
+			return IOTD_ERROR_IF_NODEV;
+		}
+	}
+
 	signal(SIGINT, sigint_handler);
 
 	ctx = lc_ctx_new();
 	sock = lc_socket_new(ctx);
+	if (lc_socket_bind(sock, ifindex) == -1) {
+		logmsg(LOG_ERROR, "Cannot bind to interface '%s'", argv[2]);
+		return IOTD_ERROR_IF_NODEV;
+	}
 	lc_socket_setopt(sock, IPV6_MULTICAST_LOOP, &on, sizeof(on));
 	chan = lc_channel_new(ctx, MY_HARDCODED_CHANNEL);
 	lc_channel_bind(sock, chan);
