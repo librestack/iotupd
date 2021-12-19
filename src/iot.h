@@ -6,7 +6,7 @@
 #include <sys/types.h>
 #include <librecast/crypto.h>
 
-#define MAX_CHANNELS 1
+#define MAX_CHANNELS 3
 
 /* IPv6 path discovery isn't much use for multicast and
  * we don't want to receive a bunch of Packet Too Big messages

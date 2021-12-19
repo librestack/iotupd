@@ -33,8 +33,9 @@ static size_t maplen = 0;
 static unsigned char filehash[HASHSIZE];
 static lc_ctx_t *ctx = NULL;
 static lc_socket_t * sock = NULL;
-static lc_channel_t * chan = NULL;
+static lc_channel_t * chan[MAX_CHANNELS] = {0};
 static u_int16_t lost;
+static u_int64_t pkts;
 
 void cleanup();
 void sigint_handler(int signo);
@@ -49,7 +50,7 @@ void cancel_checksum_thread()
 
 void cleanup()
 {
-	lc_channel_free(chan);
+	for (int i = 0; i < MAX_CHANNELS; i++) lc_channel_free(chan[i]);
 	lc_socket_close(sock);
 	lc_ctx_free(ctx);
 	close(fd);
@@ -90,7 +91,6 @@ int thread_writer(void *arg)
 {
 	int ret = 0;
 	u_int16_t last = UINT16_MAX;
-	u_int64_t pkts = 0;
 	u_int64_t binit = 0;
 	u_int64_t bwrit = 0;
 	struct stat sb;
@@ -136,7 +136,7 @@ int thread_writer(void *arg)
 		pkts++;
 		if (last < f->seq) { /* track packet loss */
 			lost += f->seq - last - 1;
-			if (lost) logmsg(LOG_DEBUG, "packets lost: %u", lost);
+			//if (lost) logmsg(LOG_DEBUG, "packets lost: %u", lost);
 		}
 		last = f->seq;
 
@@ -162,7 +162,7 @@ exit_writer:
 
 int main(int argc, char **argv)
 {
-	struct sockaddr_in6 addr;
+	struct sockaddr_in6 addr, a;
 	int ret = 0, ifindex = 0;
 
 	if (argc < 3 || argc > 4) {
@@ -183,16 +183,20 @@ int main(int argc, char **argv)
 		}
 	}
 
-	/* join our multicast channel */
+	/* join our multicast channel(s) */
 	ctx = lc_ctx_new();
 	sock = lc_socket_new(ctx);
 	if (lc_socket_bind(sock, ifindex) == -1) {
 		logmsg(LOG_ERROR, "Cannot bind to interface '%s'", argv[2]);
 		return IOTD_ERROR_IF_NODEV;
 	}
-	chan = lc_channel_init(ctx, &addr);
-	lc_channel_bind(sock, chan);
-	lc_channel_join(chan);
+	for (int i = 0; i < MAX_CHANNELS; i++) {
+		memcpy(&a, &addr, sizeof(struct sockaddr_in6));
+		a.sin6_addr.s6_addr[15] += i;
+		chan[i] = lc_channel_init(ctx, &a);
+		lc_channel_bind(sock, chan[i]);
+		lc_channel_join(chan[i]);
+	}
 
 	/* checksum thread will not start until this mutex released */
 	pthread_mutex_init(&dataready, NULL);
@@ -211,7 +215,8 @@ int main(int argc, char **argv)
 	pthread_join(twriter, NULL);
 	pthread_mutex_destroy(&dataready);
 
-	logmsg(LOG_DEBUG, "packets lost: %u", lost);
+	float pcloss = lost / pkts;
+	logmsg(LOG_DEBUG, "packets lost: %u / %llu (%0.2f %)", lost, pkts, pcloss);
 	cleanup();
 
 	return ret;
