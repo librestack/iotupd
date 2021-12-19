@@ -4,6 +4,7 @@
 #include "err.h"
 #include "iot.h"
 #include "log.h"
+#include "chan.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <librecast.h>
@@ -11,11 +12,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <net/if.h>
+#include <arpa/inet.h>
 
 #define PROGRAM_NAME "iotupd"
 
@@ -47,12 +50,14 @@ void terminate()
 
 int main(int argc, char **argv)
 {
+	struct sockaddr_in6 addr;
 	struct iot_frame_t f;
+	struct timespec pkt_delay = { 0, };
 	const int on = 1;
-	int ifindex = 0;
+	int ifindex = 0, pkt_loop = 0;
 
-	if (argc != 2 && argc != 3) {
-		fprintf(stderr, "usage: %s <file> [interface]\n", argv[0]);
+	if (argc < 3 || argc > 5) {
+		fprintf(stderr, "usage: %s <file> <group> [<packet_delay>] [<interface>]\n", argv[0]);
 		return IOTD_ERROR_INVALID_ARGS;
 	}
 
@@ -74,11 +79,22 @@ int main(int argc, char **argv)
 		return IOTD_ERROR_MMAP_FAIL;
 	}
 
-	if (argc == 3) {
-		ifindex = if_nametoindex(argv[2]);
-		if (ifindex == 0) {
-			logmsg(LOG_ERROR, "Interface '%s' not found", argv[2]);
-			return IOTD_ERROR_IF_NODEV;
+	if (get_channel(argv[2], &addr) == -1) {
+		logmsg(LOG_ERROR, "Group '%s' not valid", argv[2]);
+		return IOTD_ERROR_INVALID_ARGS;
+	}
+
+	if (argc > 3) {
+		int argn = 3;
+		/* is this a packet delay? */
+		if (sscanf(argv[argn], "%ld.%d", &pkt_delay.tv_nsec, &pkt_loop) >= 1)
+		    argn++;
+		if (argc > argn) {
+			ifindex = if_nametoindex(argv[argn]);
+			if (ifindex == 0) {
+				logmsg(LOG_ERROR, "Interface '%s' not found", argv[argn]);
+				return IOTD_ERROR_IF_NODEV;
+			}
 		}
 	}
 
@@ -91,7 +107,8 @@ int main(int argc, char **argv)
 		return IOTD_ERROR_IF_NODEV;
 	}
 	lc_socket_setopt(sock, IPV6_MULTICAST_LOOP, &on, sizeof(on));
-	chan = lc_channel_new(ctx, MY_HARDCODED_CHANNEL);
+
+	chan = lc_channel_init(ctx, &addr);
 	lc_channel_bind(sock, chan);
 
 	memset(&f, 0, sizeof(iot_frame_t));
@@ -110,14 +127,14 @@ int main(int argc, char **argv)
 			else
 				f.len = MTU_FIXED;
 
-			logmsg(LOG_DEBUG, "sending %i - %i", i, (int)(i+f.len));
+			//logmsg(LOG_DEBUG, "sending %i - %i", i, (int)(i+f.len));
 
 			memcpy(f.data, map + i, f.len);
 
 			lc_channel_send(chan, &f, sizeof(f), 0);
-#ifdef PKT_DELAY
-			usleep(PKT_DELAY);
-#endif
+			if (pkt_delay.tv_nsec > 0)
+				nanosleep(&pkt_delay, NULL);
+			for (int i = 0; i < pkt_loop; i++) ;
 		}
 	}
 	terminate();

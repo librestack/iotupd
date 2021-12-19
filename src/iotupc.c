@@ -4,6 +4,7 @@
 #include "err.h"
 #include "iot.h"
 #include "log.h"
+#include "chan.h"
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -18,6 +19,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <net/if.h>
+#include <arpa/inet.h>
 
 #define PROGRAM_NAME "iotupc"
 
@@ -66,7 +68,6 @@ int thread_checksum(void *arg)
 	pthread_mutex_lock(&dataready); /* wait here until writer says go */
 
 	while (!complete) {
-		logmsg(LOG_DEBUG, "checking hash...");
 		hash_generic(fhash, HASHSIZE, (unsigned char *)map, maplen);
 
 		for (int i = 0; i < HASHSIZE; ++i) {
@@ -113,7 +114,6 @@ int thread_writer(void *arg)
 	/* receive data and write to map */
 	while (!complete) {
 		lc_socket_recv(sock, buf, sizeof (iot_frame_t), 0);
-		logmsg(LOG_DEBUG, "message received");
 		f = (iot_frame_t *)buf;
 		if (!map) { /* we have our first packet, so create the map */
 			maplen = f->size;
@@ -130,15 +130,10 @@ int thread_writer(void *arg)
 				goto exit_writer;
 			}
 		}
-		logmsg(LOG_DEBUG, "opcode: %i", (int)f->op);
-		logmsg(LOG_DEBUG, "offset: %lld", (long long)f->off);
-		logmsg(LOG_DEBUG, "length: %lld", (long long)f->len);
 
 		/* write some data */
 		memcpy(map + f->off, f->data, f->len);
 		bwrit += f->len;
-		logmsg(LOG_DEBUG, "received: %lld bytes", (long long)bwrit);
-		logmsg(LOG_DEBUG, "filesize: %lld bytes", (long long)f->size);
 
 		if (f->size <= bwrit + binit) { /* enough data */
 			pthread_mutex_unlock(&dataready); /* begin checksumming */
@@ -157,17 +152,23 @@ exit_writer:
 
 int main(int argc, char **argv)
 {
+	struct sockaddr_in6 addr;
 	int ret = 0, ifindex = 0;
 
-	if (argc != 2 && argc != 3) {
-		fprintf(stderr, "usage: %s <file> [interface]\n", argv[0]);
+	if (argc < 3 || argc > 4) {
+		fprintf(stderr, "usage: %s <file> <group> [<interface>]\n", argv[0]);
 		return IOTD_ERROR_INVALID_ARGS;
 	}
 
-	if (argc == 3) {
-		ifindex = if_nametoindex(argv[2]);
+	if (get_channel(argv[2], &addr) == -1) {
+		logmsg(LOG_ERROR, "Group '%s' not valid", argv[2]);
+		return IOTD_ERROR_INVALID_ARGS;
+	}
+
+	if (argc > 3) {
+		ifindex = if_nametoindex(argv[3]);
 		if (ifindex == 0) {
-			logmsg(LOG_ERROR, "Interface '%s' not found", argv[2]);
+			logmsg(LOG_ERROR, "Interface '%s' not found", argv[3]);
 			return IOTD_ERROR_IF_NODEV;
 		}
 	}
@@ -179,7 +180,7 @@ int main(int argc, char **argv)
 		logmsg(LOG_ERROR, "Cannot bind to interface '%s'", argv[2]);
 		return IOTD_ERROR_IF_NODEV;
 	}
-	chan = lc_channel_new(ctx, MY_HARDCODED_CHANNEL);
+	chan = lc_channel_init(ctx, &addr);
 	lc_channel_bind(sock, chan);
 	lc_channel_join(chan);
 
