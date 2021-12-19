@@ -6,6 +6,8 @@
 #include <sys/types.h>
 #include <librecast/crypto.h>
 
+#define MAX_CHANNELS 1
+
 /* IPv6 path discovery isn't much use for multicast and
  * we don't want to receive a bunch of Packet Too Big messages
  * so we'll use a fixed MTU of 1280 - headers + extensions => ~1200 */
@@ -16,7 +18,7 @@ typedef struct iot_file_t {
 } iot_file_t;
 
 typedef struct iot_frame_t {
-	uint8_t		op;				/* opcode */
+	u_int16_t	seq;				/* sequence number */
 	u_int64_t	size;				/* full file size */
 	u_int64_t	off;				/* offset */
 	size_t		len;				/* length of this chunk */

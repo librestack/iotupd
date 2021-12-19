@@ -34,6 +34,7 @@ static unsigned char filehash[HASHSIZE];
 static lc_ctx_t *ctx = NULL;
 static lc_socket_t * sock = NULL;
 static lc_channel_t * chan = NULL;
+static u_int16_t lost;
 
 void cleanup();
 void sigint_handler(int signo);
@@ -88,6 +89,8 @@ int thread_checksum(void *arg)
 int thread_writer(void *arg)
 {
 	int ret = 0;
+	u_int16_t last = UINT16_MAX;
+	u_int64_t pkts = 0;
 	u_int64_t binit = 0;
 	u_int64_t bwrit = 0;
 	struct stat sb;
@@ -130,10 +133,17 @@ int thread_writer(void *arg)
 				goto exit_writer;
 			}
 		}
+		pkts++;
+		if (last < f->seq) { /* track packet loss */
+			lost += f->seq - last - 1;
+			if (lost) logmsg(LOG_DEBUG, "packets lost: %u", lost);
+		}
+		last = f->seq;
 
 		/* write some data */
 		memcpy(map + f->off, f->data, f->len);
 		bwrit += f->len;
+		//logmsg(LOG_DEBUG, "received: %lld bytes", (long long)bwrit);
 
 		if (f->size <= bwrit + binit) { /* enough data */
 			pthread_mutex_unlock(&dataready); /* begin checksumming */
@@ -201,6 +211,7 @@ int main(int argc, char **argv)
 	pthread_join(twriter, NULL);
 	pthread_mutex_destroy(&dataready);
 
+	logmsg(LOG_DEBUG, "packets lost: %u", lost);
 	cleanup();
 
 	return ret;

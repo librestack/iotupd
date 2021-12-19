@@ -24,7 +24,7 @@
 
 static lc_ctx_t *ctx = NULL;
 static lc_socket_t *sock = NULL;
-static lc_channel_t *chan = NULL;
+static lc_channel_t *chan[MAX_CHANNELS] = {0};
 static int running = 1;
 static int fd;
 static char *map;
@@ -40,7 +40,7 @@ void sigint_handler (int signo)
 
 void terminate()
 {
-	lc_channel_free(chan);
+	for (int i = 0; i < MAX_CHANNELS; i++) lc_channel_free(chan[i]);
 	lc_socket_close(sock);
 	lc_ctx_free(ctx);
 	munmap(map, sb.st_size);
@@ -50,7 +50,7 @@ void terminate()
 
 int main(int argc, char **argv)
 {
-	struct sockaddr_in6 addr;
+	struct sockaddr_in6 addr, a;
 	struct iot_frame_t f;
 	struct timespec pkt_delay = { 0, };
 	const int on = 1;
@@ -108,8 +108,12 @@ int main(int argc, char **argv)
 	}
 	lc_socket_setopt(sock, IPV6_MULTICAST_LOOP, &on, sizeof(on));
 
-	chan = lc_channel_init(ctx, &addr);
-	lc_channel_bind(sock, chan);
+	for (int i = 0; i < MAX_CHANNELS; i++) {
+		memcpy(&a, &addr, sizeof(struct sockaddr_in6));
+		a.sin6_addr.s6_addr[15] += i;
+		chan[i] = lc_channel_init(ctx, &a);
+	}
+	for (int i = 0; i < MAX_CHANNELS; i++) lc_channel_bind(sock, chan[i]);
 
 	memset(&f, 0, sizeof(iot_frame_t));
 
@@ -117,8 +121,8 @@ int main(int argc, char **argv)
 	hash_generic(f.hash, HASHSIZE, (unsigned char *)map, sb.st_size);
 
 	while (running) {
+		int channo = 0;
 		for (int i = 0; i <= sb.st_size && running; i += MTU_FIXED) {
-			f.op = 0; /* TODO: data opcode */
 			f.size = sb.st_size;
 			f.off = i;
 
@@ -131,10 +135,15 @@ int main(int argc, char **argv)
 
 			memcpy(f.data, map + i, f.len);
 
-			lc_channel_send(chan, &f, sizeof(f), 0);
+			lc_channel_send(chan[channo], &f, sizeof(f), 0);
 			if (pkt_delay.tv_nsec > 0)
 				nanosleep(&pkt_delay, NULL);
 			for (int i = 0; i < pkt_loop; i++) ;
+			channo++;
+			if (channo >= MAX_CHANNELS) {
+				channo = 0;
+				f.seq++;
+			}
 		}
 	}
 	terminate();
