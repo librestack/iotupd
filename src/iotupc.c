@@ -115,7 +115,7 @@ int thread_writer(void *arg)
 	}
 
 	/* determine size on disk, to see how much data we already have */
-	binit = 512 * sb.st_blocks;
+	binit = sb.st_size;
 	logmsg(LOG_DEBUG, "file already contains: %lld bytes", (long long)binit);
 
 	/* receive data and write to map */
