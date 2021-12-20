@@ -35,6 +35,8 @@ static lc_ctx_t *ctx = NULL;
 static lc_socket_t * sock = NULL;
 static lc_channel_t * chan[MAX_CHANNELS] = {0};
 static u_int16_t lost;
+static u_int16_t alost; /* packets lost since last adjustment */
+static u_int64_t apkts; /* total packets since last adjustment */
 static u_int64_t pkts;
 
 void cleanup();
@@ -91,6 +93,7 @@ int thread_writer(void *arg)
 {
 	int ret = 0;
 	u_int16_t last = UINT16_MAX;
+	u_int16_t len, seq;
 	u_int64_t binit = 0;
 	u_int64_t bwrit = 0;
 	struct stat sb;
@@ -119,14 +122,14 @@ int thread_writer(void *arg)
 		lc_socket_recv(sock, buf, sizeof (iot_frame_t), 0);
 		f = (iot_frame_t *)buf;
 		if (!map) { /* we have our first packet, so create the map */
-			maplen = f->size;
+			maplen = (size_t)be64toh(f->size);
 			memcpy(&filehash, f->hash, HASHSIZE);
-			if (ftruncate(fd, f->size) != 0) {
+			if (ftruncate(fd, maplen) != 0) {
 				err_print(0, errno, "ftruncate()");
 				ret = IOTD_ERROR_MMAP_FAIL;
 				goto exit_writer;
 			}
-			map = mmap(NULL, f->size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+			map = mmap(NULL, maplen, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
 			if (map == MAP_FAILED) {
 				logmsg(LOG_ERROR, "mmap() failed: %s", strerror(errno));
 				ret = IOTD_ERROR_MMAP_FAIL;
@@ -134,21 +137,31 @@ int thread_writer(void *arg)
 			}
 		}
 		pkts++;
-		if (last < f->seq) { /* track packet loss */
-			lost += f->seq - last - 1;
+		seq = ntohs(f->seq);
+		if (last < seq) { /* track packet loss */
+			lost += seq - last - 1;
+			alost += seq - last - 1;
 			//if (lost) logmsg(LOG_DEBUG, "packets lost: %u", lost);
+			if (apkts && alost) {
+				float lrate = alost / apkts;
+				if (lrate > LOSS_TOLERANCE) {
+					logmsg(LOG_DEBUG, "packet loss too high (%0.2f %), adjusting", lrate);
+					alost = 0; apkts = 0; /* reset counters */
+				}
+			}
 		}
-		last = f->seq;
+		last = seq;
 
 		/* write some data */
-		memcpy(map + f->off, f->data, f->len);
-		bwrit += f->len;
+		len = ntohs(f->len);
+		memcpy(map + be64toh(f->off), f->data, len);
+		bwrit += len;
 		//logmsg(LOG_DEBUG, "received: %lld bytes", (long long)bwrit);
 
-		if (f->size <= bwrit + binit) { /* enough data */
+		if (maplen <= bwrit + binit) { /* enough data */
 			pthread_mutex_unlock(&dataready); /* begin checksumming */
 		}
-		msync(map, f->size, MS_ASYNC);
+		msync(map, maplen, MS_ASYNC);
 	}
 
 exit_writer:
@@ -163,6 +176,7 @@ exit_writer:
 int main(int argc, char **argv)
 {
 	struct sockaddr_in6 addr, a;
+	float pcloss;
 	int ret = 0, ifindex = 0;
 
 	if (argc < 3 || argc > 4) {
@@ -215,7 +229,7 @@ int main(int argc, char **argv)
 	pthread_join(twriter, NULL);
 	pthread_mutex_destroy(&dataready);
 
-	float pcloss = lost / pkts;
+	pcloss = (pkts) ? lost / pkts: 0.0f;
 	logmsg(LOG_DEBUG, "packets lost: %u / %llu (%0.2f %)", lost, pkts, pcloss);
 	cleanup();
 

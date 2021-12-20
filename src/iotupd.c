@@ -55,6 +55,7 @@ int main(int argc, char **argv)
 	struct timespec pkt_delay = { 0, };
 	const int on = 1;
 	int ifindex = 0, pkt_loop = 0;
+	uint16_t len;
 
 	if (argc < 3 || argc > 5) {
 		fprintf(stderr, "usage: %s <file> <group> [<packet_delay>] [<interface>]\n", argv[0]);
@@ -123,17 +124,20 @@ int main(int argc, char **argv)
 	while (running) {
 		int channo = 0;
 		for (int i = 0; i <= sb.st_size && running; i += MTU_FIXED) {
-			f.size = sb.st_size;
-			f.off = i;
+			f.size = htobe64(sb.st_size);
+			f.off = htobe64(i);
 
-			if ((i + MTU_FIXED) > sb.st_size)
-				f.len = sb.st_size - i;
-			else
-				f.len = MTU_FIXED;
+			if ((i + MTU_FIXED) > sb.st_size) {
+				len = sb.st_size - i;
+			}
+			else {
+				len = MTU_FIXED;
+			}
+			f.len = htons(len);
 
 			//logmsg(LOG_DEBUG, "sending %i - %i", i, (int)(i+f.len));
 
-			memcpy(f.data, map + i, f.len);
+			memcpy(f.data, map + i, len);
 
 			lc_channel_send(chan[channo], &f, sizeof(f), 0);
 			if (pkt_delay.tv_nsec > 0)
@@ -142,7 +146,7 @@ int main(int argc, char **argv)
 			channo++;
 			if (channo >= MAX_CHANNELS) {
 				channo = 0;
-				f.seq++;
+				f.seq = htons(ntohs(f.seq) + 1);
 			}
 		}
 	}

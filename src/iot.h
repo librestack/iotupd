@@ -6,7 +6,8 @@
 #include <sys/types.h>
 #include <librecast/crypto.h>
 
-#define MAX_CHANNELS 3
+#define MAX_CHANNELS 5
+#define LOSS_TOLERANCE 0.01 /* MAX PACKET LOSS */
 
 /* IPv6 path discovery isn't much use for multicast and
  * we don't want to receive a bunch of Packet Too Big messages
@@ -21,7 +22,7 @@ typedef struct iot_frame_t {
 	u_int16_t	seq;				/* sequence number */
 	u_int64_t	size;				/* full file size */
 	u_int64_t	off;				/* offset */
-	size_t		len;				/* length of this chunk */
+	u_int16_t	len;				/* length of this chunk */
 	unsigned char	hash[HASHSIZE];			/* SHA3 hash of file */
 	char 		data[MTU_FIXED];		/* data */
 } __attribute__((__packed__)) iot_frame_t;
