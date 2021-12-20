@@ -6,7 +6,7 @@
 #include <sys/types.h>
 #include <librecast/crypto.h>
 
-#define MAX_CHANNELS 5
+#define MAX_CHANNELS 5 /* prime number recommended to ensure full data avail on single channel */
 #define LOSS_TOLERANCE 0.01 /* MAX PACKET LOSS % */
 #define PKTS_STABILITY 100    /* number of packets to receive without loss to consider stable */
 
