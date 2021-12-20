@@ -34,10 +34,11 @@ static unsigned char filehash[HASHSIZE];
 static lc_ctx_t *ctx = NULL;
 static lc_socket_t * sock = NULL;
 static lc_channel_t * chan[MAX_CHANNELS] = {0};
-static u_int16_t lost;
-static u_int16_t alost; /* packets lost since last adjustment */
-static u_int64_t apkts; /* total packets since last adjustment */
-static u_int64_t pkts;
+static uint64_t pkts;  /* total packets */
+static uint64_t lost;  /* total lost packets */
+static uint64_t apkts; /* total packets since last adjustment */
+static uint64_t alost; /* packets lost since last adjustment */
+static uint16_t actchans; /* active receive channels */
 
 void cleanup();
 void sigint_handler(int signo);
@@ -136,19 +137,29 @@ int thread_writer(void *arg)
 				goto exit_writer;
 			}
 		}
-		pkts++;
+		pkts++; apkts++;
 		seq = ntohs(f->seq);
-		if (last < seq) { /* track packet loss */
-			lost += seq - last - 1;
-			alost += seq - last - 1;
-			//if (lost) logmsg(LOG_DEBUG, "packets lost: %u", lost);
-			if (apkts && alost) {
-				float lrate = alost / apkts;
+		if (last + 1 < seq) { /* track packet loss */
+			uint64_t gap = seq - last - 1;
+			printf("last: %u seq: %u gap = %lu\n", last, seq, gap);
+			lost += gap;
+			alost += gap;
+			printf("apkts=%lu, alost=%lu\n", apkts, alost);
+			if (apkts && alost && actchans > 1) {
+				float lrate = (float)alost / (float)apkts * 100;
+				logmsg(LOG_DEBUG, "loss rate = %0.2f %", lrate);
 				if (lrate > LOSS_TOLERANCE) {
-					logmsg(LOG_DEBUG, "packet loss too high (%0.2f %), adjusting", lrate);
 					alost = 0; apkts = 0; /* reset counters */
+					lc_channel_part(chan[--actchans]);
+					logmsg(LOG_DEBUG, "packet loss too high (%0.2f %), reducing to %u channels", lrate, actchans);
 				}
 			}
+		}
+		if (apkts > PKTS_STABILITY && actchans < MAX_CHANNELS) {
+			/* no packet loss, moar speed ! */
+			apkts = 0;
+			lc_channel_join(chan[actchans++]);
+			logmsg(LOG_DEBUG, "no packet loss increasing to %u channels", actchans);
 		}
 		last = seq;
 
@@ -209,7 +220,8 @@ int main(int argc, char **argv)
 		a.sin6_addr.s6_addr[15] += i;
 		chan[i] = lc_channel_init(ctx, &a);
 		lc_channel_bind(sock, chan[i]);
-		lc_channel_join(chan[i]);
+		/* join all channels - we'll back off if there's a problem */
+		lc_channel_join(chan[actchans++]);
 	}
 
 	/* checksum thread will not start until this mutex released */
@@ -229,7 +241,7 @@ int main(int argc, char **argv)
 	pthread_join(twriter, NULL);
 	pthread_mutex_destroy(&dataready);
 
-	pcloss = (pkts) ? lost / pkts: 0.0f;
+	pcloss = (pkts) ? (float)lost / (float)pkts * 100: 0.00f;
 	logmsg(LOG_DEBUG, "packets lost: %u / %llu (%0.2f %)", lost, pkts, pcloss);
 	cleanup();
 
