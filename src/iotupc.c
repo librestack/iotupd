@@ -141,10 +141,10 @@ int thread_writer(void *arg)
 		seq = ntohs(f->seq);
 		if (last + 1 < seq) { /* track packet loss */
 			uint64_t gap = seq - last - 1;
-			printf("last: %u seq: %u gap = %lu\n", last, seq, gap);
+			logmsg(LOG_DEBUG, "last: %u seq: %u gap = %lu", last, seq, gap);
 			lost += gap;
 			alost += gap;
-			printf("apkts=%lu, alost=%lu\n", apkts, alost);
+			logmsg(LOG_DEBUG, "apkts=%lu, alost=%lu", apkts, alost);
 			if (apkts && alost && actchans > 1) {
 				float lrate = (float)alost / (float)apkts * 100;
 				logmsg(LOG_DEBUG, "loss rate = %0.2f %", lrate);
