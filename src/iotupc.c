@@ -123,7 +123,9 @@ int thread_writer(void *arg)
 	while (!complete) {
 		lc_socket_recv(sock, buf, sizeof (iot_frame_t), 0);
 		f = (iot_frame_t *)buf;
+		seq = ntohs(f->seq);
 		if (!map) { /* we have our first packet, so create the map */
+			last = seq - 1;
 			maplen = (size_t)be64toh(f->size);
 			logmsg(LOG_DEBUG, "receiving file of size %zu", maplen);
 			memcpy(&filehash, f->hash, HASHSIZE);
@@ -140,7 +142,6 @@ int thread_writer(void *arg)
 			}
 		}
 		pkts++; apkts++;
-		seq = ntohs(f->seq);
 		if (last + 1 < seq) { /* track packet loss */
 			uint64_t gap = seq - last - 1;
 			//logmsg(LOG_DEBUG, "last: %u seq: %u gap = %lu", last, seq, gap);
