@@ -160,7 +160,7 @@ int thread_writer(void *arg)
 #if 0
 		if (apkts > PKTS_STABILITY * 10 && actchans < MAX_CHANNELS) {
 			/* no packet loss, moar speed ! */
-			apkts = 0; alost = 0;
+			apkts = 0;
 			lc_channel_join(chan[actchans++]);
 			logmsg(LOG_DEBUG, "no packet loss increasing to %u channels", actchans);
 		}
@@ -193,7 +193,7 @@ exit_writer:
 int main(int argc, char **argv)
 {
 	struct sockaddr_in6 addr, a;
-	double pcloss;
+	float pcloss;
 	int ret = 0, ifindex = 0;
 
 	if (argc < 3 || argc > 4) {
@@ -247,8 +247,8 @@ int main(int argc, char **argv)
 	pthread_join(twriter, NULL);
 	pthread_mutex_destroy(&dataready);
 
-	pcloss = (pkts) ? (double)lost / (double)pkts * 100: 0.00f;
-	logmsg(LOG_DEBUG, "packets lost: %llu / %llu (%0.2f %)", lost, pkts, pcloss);
+	pcloss = (pkts) ? (float)lost / (float)pkts * 100: 0.00f;
+	logmsg(LOG_DEBUG, "packets lost: %u / %llu (%0.2f %)", lost, pkts, pcloss);
 	cleanup();
 
 	return ret;
