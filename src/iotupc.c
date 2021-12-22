@@ -125,7 +125,7 @@ int thread_writer(void *arg)
 		f = (iot_frame_t *)buf;
 		seq = ntohs(f->seq);
 		if (!map) { /* we have our first packet, so create the map */
-			last = seq - 1;
+			last = seq;
 			maplen = (size_t)be64toh(f->size);
 			logmsg(LOG_DEBUG, "receiving file of size %zu", maplen);
 			memcpy(&filehash, f->hash, HASHSIZE);
