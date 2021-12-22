@@ -49,6 +49,7 @@ void cancel_checksum_thread()
 {
 	complete = 1;
 	pthread_mutex_unlock(&dataready);
+	_exit(0);
 }
 
 void cleanup()
@@ -70,9 +71,9 @@ int thread_checksum(void *arg)
 {
 	unsigned char fhash[HASHSIZE];
 
-	pthread_mutex_lock(&dataready); /* wait here until writer says go */
 
 	while (!complete) {
+		pthread_mutex_lock(&dataready); /* wait here until writer says go */
 		hash_generic(fhash, HASHSIZE, (unsigned char *)map, maplen);
 
 		for (int i = 0; i < HASHSIZE; ++i) {
@@ -142,13 +143,13 @@ int thread_writer(void *arg)
 		seq = ntohs(f->seq);
 		if (last + 1 < seq) { /* track packet loss */
 			uint64_t gap = seq - last - 1;
-			logmsg(LOG_DEBUG, "last: %u seq: %u gap = %lu", last, seq, gap);
+			//logmsg(LOG_DEBUG, "last: %u seq: %u gap = %lu", last, seq, gap);
 			lost += gap;
 			alost += gap;
-			logmsg(LOG_DEBUG, "apkts=%lu, alost=%lu", apkts, alost);
+			//logmsg(LOG_DEBUG, "apkts=%lu, alost=%lu", apkts, alost);
 			if (apkts && alost && actchans > 1) {
-				float lrate = (float)alost / (float)apkts * 100;
-				logmsg(LOG_DEBUG, "loss rate = %0.2f %", lrate);
+				double lrate = (double)alost / (double)apkts * 100;
+				//logmsg(LOG_DEBUG, "loss rate = %0.2f %", lrate);
 				if (lrate > LOSS_TOLERANCE) {
 					alost = 0; apkts = 0; /* reset counters */
 					lc_channel_part(chan[--actchans]);
@@ -156,24 +157,28 @@ int thread_writer(void *arg)
 				}
 			}
 		}
-		if (apkts > PKTS_STABILITY && actchans < MAX_CHANNELS) {
+#if 0
+		if (apkts > PKTS_STABILITY * 10 && actchans < MAX_CHANNELS) {
 			/* no packet loss, moar speed ! */
-			apkts = 0;
+			apkts = 0; alost = 0;
 			lc_channel_join(chan[actchans++]);
 			logmsg(LOG_DEBUG, "no packet loss increasing to %u channels", actchans);
 		}
+#endif
 		last = seq;
 
 		/* write some data */
 		len = ntohs(f->len);
-		memcpy(map + be64toh(f->off), f->data, len);
-		bwrit += len;
-		//logmsg(LOG_DEBUG, "received: %lld bytes", (long long)bwrit);
+		if (memcmp(map + be64toh(f->off), f->data, len)) {
+			memcpy(map + be64toh(f->off), f->data, len);
+			bwrit += len;
+			//logmsg(LOG_DEBUG, "received: %lld bytes", (long long)bwrit);
 
-		if (maplen <= bwrit + binit) { /* enough data */
-			pthread_mutex_unlock(&dataready); /* begin checksumming */
+			if (maplen <= bwrit + binit) { /* enough data */
+				pthread_mutex_unlock(&dataready); /* begin checksumming */
+			}
+			msync(map, maplen, MS_ASYNC);
 		}
-		msync(map, maplen, MS_ASYNC);
 	}
 
 exit_writer:
@@ -188,7 +193,7 @@ exit_writer:
 int main(int argc, char **argv)
 {
 	struct sockaddr_in6 addr, a;
-	float pcloss;
+	double pcloss;
 	int ret = 0, ifindex = 0;
 
 	if (argc < 3 || argc > 4) {
@@ -242,8 +247,8 @@ int main(int argc, char **argv)
 	pthread_join(twriter, NULL);
 	pthread_mutex_destroy(&dataready);
 
-	pcloss = (pkts) ? (float)lost / (float)pkts * 100: 0.00f;
-	logmsg(LOG_DEBUG, "packets lost: %u / %llu (%0.2f %)", lost, pkts, pcloss);
+	pcloss = (pkts) ? (double)lost / (double)pkts * 100: 0.00f;
+	logmsg(LOG_DEBUG, "packets lost: %llu / %llu (%0.2f %)", lost, pkts, pcloss);
 	cleanup();
 
 	return ret;

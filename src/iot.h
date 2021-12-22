@@ -6,9 +6,9 @@
 #include <sys/types.h>
 #include <librecast/crypto.h>
 
-#define MAX_CHANNELS 5 /* prime number recommended to ensure full data avail on single channel */
-#define LOSS_TOLERANCE 0.01 /* MAX PACKET LOSS % */
-#define PKTS_STABILITY 100    /* number of packets to receive without loss to consider stable */
+#define MAX_CHANNELS 1024 /* prime number recommended to ensure full data avail on single channel */
+#define LOSS_TOLERANCE 0.05 /* MAX PACKET LOSS % */
+#define PKTS_STABILITY 10000    /* number of packets to receive without loss to consider stable */
 
 /* IPv6 path discovery isn't much use for multicast and
  * we don't want to receive a bunch of Packet Too Big messages
