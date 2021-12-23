@@ -19,6 +19,10 @@
 #include <unistd.h>
 #include <net/if.h>
 #include <arpa/inet.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/udp.h>
+#include <sys/ioctl.h>
 
 #define PROGRAM_NAME "iotupd"
 
@@ -121,9 +125,17 @@ int main(int argc, char **argv)
 	/* calculate file hash */
 	hash_generic(f.hash, HASHSIZE, (unsigned char *)map, sb.st_size);
 
+	unsigned long req = 0;
 	while (running) {
 		int channo = 0;
 		for (int i = 0; i <= sb.st_size && running; i += MTU_FIXED) {
+			int qlen = 0;
+			do {
+				/* don't overfill outbound send buffer */
+				if (!ioctl(lc_socket_raw(sock), TIOCOUTQ, &req)) {
+					qlen = req / MTU_FIXED;
+				}
+			} while (qlen > SENDQ_PKTS);
 			f.size = htobe64(sb.st_size);
 			f.off = htobe64(i);
 

@@ -9,6 +9,7 @@
 #define MAX_CHANNELS 1 /* prime number recommended to ensure full data avail on single channel */
 #define LOSS_TOLERANCE 0.05 /* MAX PACKET LOSS % */
 #define PKTS_STABILITY 10000    /* number of packets to receive without loss to consider stable */
+#define SENDQ_PKTS 100 /* limit number of outbound packets in send queue */
 
 /* IPv6 path discovery isn't much use for multicast and
  * we don't want to receive a bunch of Packet Too Big messages
