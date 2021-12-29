@@ -62,7 +62,7 @@ int main(int argc, char **argv)
 	uint16_t len;
 
 	if (argc < 3 || argc > 5) {
-		fprintf(stderr, "usage: %s <file> <group> [<packet_delay>] [<interface>]\n", argv[0]);
+		fprintf(stderr, "usage: %s <file> <group> [<delay>] [<interface>]\n", argv[0]);
 		return IOTD_ERROR_INVALID_ARGS;
 	}
 
@@ -129,13 +129,18 @@ int main(int argc, char **argv)
 	while (running) {
 		int channo = 0;
 		for (int i = 0; i <= sb.st_size && running; i += MTU_FIXED) {
-			int qlen = 0;
-			do {
-				/* don't overfill outbound send buffer */
-				if (!ioctl(lc_socket_raw(sock), TIOCOUTQ, &req)) {
-					qlen = req / MTU_FIXED;
-				}
-			} while (qlen > SENDQ_PKTS);
+			/* don't overfill outbound send buffer */
+			while (1) {
+				int qlen;
+				if (ioctl(lc_socket_raw(sock), TIOCOUTQ, &req) == -1)
+					break;
+				qlen = req / MTU_FIXED;
+				if (qlen <= SENDQ_PKTS)
+					break;
+				if (pkt_delay.tv_nsec > 0)
+					nanosleep(&pkt_delay, NULL);
+				for (int i = 0; i < pkt_loop; i++) ;
+			}
 			f.size = htobe64(sb.st_size);
 			f.off = htobe64(i);
 
@@ -152,9 +157,6 @@ int main(int argc, char **argv)
 			memcpy(f.data, map + i, len);
 
 			lc_channel_send(chan[channo], &f, sizeof(f), 0);
-			if (pkt_delay.tv_nsec > 0)
-				nanosleep(&pkt_delay, NULL);
-			for (int i = 0; i < pkt_loop; i++) ;
 			channo++;
 			if (channo >= MAX_CHANNELS) {
 				channo = 0;
