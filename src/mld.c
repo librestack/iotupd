@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Copyright (c) 2020-2021 Brett Sheffield <bacs@librecast.net> */
+/* SPDX-License-Identifier: GPL-2.0-only OR GPL-3.0-only */
+/* Copyright (c) 2020-2022 Brett Sheffield <bacs@librecast.net> */
 #define _GNU_SOURCE /* required for struct in6_pktinfo */
 #include "mld_pvt.h"
 #include "log.h"
@@ -76,71 +76,6 @@ void mld_stop(mld_t *mld)
 	mld_free(mld);
 }
 
-void vec_dump(vec_t *vec, int idx)
-{
-	for (int j = 0; j < VECTOR_SZ; j++) {
-		fprintf(stderr, "%u ", (uint8_t)vec[idx / VECTOR_BITS].u8[j]);
-	}
-	putc('\n', stderr);
-}
-
-/* decrement all the counters. There are 16.7 million of them, use SIMD */
-void mld_timer_tick(mld_t *mld, unsigned int iface, size_t idx, uint8_t val)
-{
-	(void)iface; (void)idx; (void)val;
-	vec_t *t, *grp;
-	vec_t mask = {0};
-	for (int i = 0; i < mld->len; i++) {
-		t = mld->filter[i].t;
-		grp = mld->filter[i].grp;
-		for (size_t z = 0; z < BLOOM_VECTORS; z++) {
-			mask.u8 = t[z].u8 > 0;
-			t[z].u8 += mask.u8;	/* decrement timers */
-			/* CPU is critical here - do this on read instead ? */
-			mask.u8 = t[z].u8 != 0;
-			grp[z].u8 &= mask.u8;	/* clear expired groups */
-		}
-		if (*(mld->cont) == 0) break;
-	}
-	DEBUG("%s()", __func__);
-}
-
-void mld_timer_set(mld_t *mld, unsigned int iface, size_t idx, uint8_t val)
-{
-	vec_t *t = mld->filter[iface].t;
-	vec_set_epi8(t, idx, val);
-}
-
-void mld_timer_refresh(mld_t *mld, unsigned int iface, size_t idx, uint8_t val)
-{
-	(void) val;
-	mld_timer_set(mld, iface, idx, MLD_TIMEOUT);
-}
-
-static void *mld_timer_job(void *arg)
-{
-	mld_timerjob_t *tj = (mld_timerjob_t *)arg;
-	tj->f(tj->mld, tj->iface, tj->idx, tj->val);
-	return arg;
-}
-
-/* this thread handles the clock ticks, creating a job for the timer thread */
-static void mld_timer_ticker(mld_t *mld, unsigned int iface, size_t idx, uint8_t val)
-{
-	(void) val;
-	struct timespec ts;
-	sem_t sem;
-	mld_timerjob_t tj = { .mld = mld, .iface = iface, .idx = idx, .f = &mld_timer_tick };
-	sem_init(&sem, 0, 0);
-	clock_gettime(CLOCK_REALTIME, &ts);
-	//for (;;) {
-	while (*(mld->cont)) {
-		ts.tv_sec += MLD_TIMER_INTERVAL;
-		sem_timedwait(&sem, &ts);
-		job_push_new(mld->timerq, &mld_timer_job, &tj, sizeof tj, &free, JOB_COPY|JOB_FREE);
-	}
-}
-
 lc_channel_t *mld_notification_channel(mld_t *mld, struct in6_addr *addr, int events)
 {
 	lc_channel_t *tmp;
@@ -155,154 +90,10 @@ lc_channel_t *mld_notification_channel(mld_t *mld, struct in6_addr *addr, int ev
 		addr = &any;
 	}
 	memcpy(&sa.sin6_addr, addr, sizeof(struct in6_addr));
-#if 0
-	// FIXME
-	if (!inet_ntop(AF_INET6, addr, &sa.sin6_addr, INET6_ADDRSTRLEN)) {
-		ERROR("inet_ntop()");
-		return NULL;
-	}
-#endif
 
 	tmp = lc_channel_init(mld->lctx, &sa);
 	if (!tmp) return NULL;
 	return lc_channel_sidehash(tmp, (unsigned char *)&events, sizeof(unsigned char));
-}
-
-mld_watch_t *mld_watch_init(mld_t *mld, unsigned int ifx, struct in6_addr *grp, int events,
-	void (*f)(mld_watch_t *, mld_watch_t *), void *arg, int flags)
-{
-	mld_watch_t *w = calloc(1, sizeof(mld_watch_t));
-	w->mld = mld;
-	w->grp = grp;
-	w->ifx = ifx;
-	w->events = events;
-	w->flags = flags;
-	w->f = f;
-	w->arg = arg;
-	return w;
-}
-
-int mld_watch_stop(mld_watch_t *watch)
-{
-	pthread_cancel(watch->thread);
-	pthread_join(watch->thread, NULL);
-	return 0;
-}
-
-static void mld_watch_callback(mld_watch_t *watch, struct in6_pktinfo *pi)
-{
-	DEBUG("%s()", __func__);
-	mld_watch_t *event = calloc(1, sizeof(mld_watch_t));
-	if (!event) return;
-	event->mld = watch->mld;
-	event->ifx = ntohl(pi->ipi6_ifindex);
-	event->grp = &pi->ipi6_addr;
-	watch->f(event, watch);
-	free(event);
-}
-
-void *mld_watch_thread(void *arg)
-{
-	mld_watch_t *watch = (mld_watch_t *)arg;
-	struct iovec iov[1] = {0};
-	struct msghdr msg = {0};
-	char ctrl[CMSG_SPACE(sizeof(struct in6_pktinfo))];
-	const int opt = 1;
-	int s;
-
-	struct in6_pktinfo pi = {0};
-	iov[0].iov_base = &pi;
-	iov[0].iov_len = sizeof pi;
-
-	DEBUG("%s()", __func__);
-
-	msg.msg_iov = iov;
-	msg.msg_iovlen = 1;
-	msg.msg_control = ctrl;
-	msg.msg_controllen = sizeof ctrl;
-
-	s = lc_socket_raw(watch->sock);
-	assert(s);
-	if (setsockopt(s, IPPROTO_IPV6, IPV6_RECVPKTINFO, &opt, sizeof(opt))) {
-		ERROR("%s() setsockopt: %s", __func__, strerror(errno));
-		return NULL;
-	}
-	for (;;) {
-		DEBUG("%s() - waiting for notification", __func__);
-		recvmsg(s, &msg, 0);
-#ifdef MLD_DEBUG
-		char strgrp[INET6_ADDRSTRLEN];
-		inet_ntop(AF_INET6, &pi.ipi6_addr, strgrp, INET6_ADDRSTRLEN);
-		DEBUG("%s() - notification for grp %s (%u) received, doing callback",
-				__func__, strgrp, ntohl(pi.ipi6_ifindex));
-#endif
-		mld_watch_callback(watch, &pi);
-	}
-
-	return NULL;
-}
-
-int mld_watch_start(mld_watch_t *watch)
-{
-	pthread_attr_t attr = {0};
-	int rc;
-
-	DEBUG("%s()", __func__);
-	assert(watch->mld);
-
-	watch->sock = lc_socket_new(watch->mld->lctx);
-	if (!watch->sock) return -1;
-	watch->chan = mld_notification_channel(watch->mld, watch->grp, watch->events);
-	if (!watch->chan) goto err_0;
-	/* avoid race by directly adding addr to filter */
-	if (watch->ifx == 0) { /* 0 => all interfaces */
-		for (int i = 0; i < watch->mld->len; i++) {
-			mld_filter_grp_add(watch->mld, i, lc_channel_in6addr(watch->chan));
-		}
-	}
-	else mld_filter_grp_add(watch->mld, watch->ifx, lc_channel_in6addr(watch->chan));
-	if ((rc = lc_channel_bind(watch->sock, watch->chan))) {
-		ERROR("lc_channel_bind(): %s", lc_error_msg(rc));
-		goto err_1;
-	}
-	if ((rc = lc_channel_join(watch->chan))) {
-		ERROR("lc_channel_join(): %s", lc_error_msg(rc));
-		goto err_1;
-	}
-	pthread_attr_init(&attr);
-	pthread_create(&watch->thread, &attr, &mld_watch_thread, watch);
-	pthread_attr_destroy(&attr);
-
-	return 0;
-err_1:
-	lc_channel_free(watch->chan);
-err_0:
-	lc_socket_close(watch->sock);
-	return -1;
-}
-
-void mld_watch_free(mld_watch_t *watch)
-{
-	free(watch);
-}
-
-int mld_watch_cancel(mld_watch_t *watch)
-{
-	int rc = mld_watch_stop(watch);
-	mld_watch_free(watch);
-	return rc;
-}
-
-mld_watch_t *mld_watch(mld_t *mld, unsigned int ifx, struct in6_addr *grp, int events,
-	void (*f)(mld_watch_t *, mld_watch_t *), void *arg, int flags)
-{
-	mld_watch_t *watch = mld_watch_init(mld, ifx, grp, events, f, arg, flags);
-	if (!watch) return NULL;
-	if (mld_watch_start(watch) == -1) {
-		mld_watch_free(watch);
-		watch = NULL;
-	}
-	return watch;
 }
 
 static int mld_wait_poll(mld_t *mld, unsigned int ifx, struct in6_addr *addr)
@@ -330,10 +121,7 @@ static int mld_wait_poll(mld_t *mld, unsigned int ifx, struct in6_addr *addr)
 	fds.fd = lc_socket_raw(sock);
 	while (!(rc = poll(&fds, 1, timeout)) && (*(mld->cont)));
 
-	// TODO - return addr and iface
-
 	if (rc > 0) DEBUG("%s() notify received", __func__);
-	//lc_channel_part(chan);
 	rc = 0;
 exit_err_1:
 	lc_channel_free(chan);
@@ -438,10 +226,7 @@ static int mld_filter_grp_del_f(mld_t *mld, unsigned int iface, size_t idx, vec_
 
 static int mld_filter_grp_add_f(mld_t *mld, unsigned int iface, size_t idx, vec_t *v)
 {
-	mld_timerjob_t tj = { .mld = mld, .iface = iface, .f = &mld_timer_refresh };
 	if (vec_get_epi8(v, idx) != CHAR_MAX) vec_inc_epi8(v, idx);
-	tj.idx = idx;
-	job_push_new(mld->timerq, &mld_timer_job, &tj, sizeof tj, &free, JOB_COPY|JOB_FREE);
 	return 0;
 }
 
@@ -499,10 +284,7 @@ int mld_filter_timer_set(mld_t *mld, unsigned int iface, struct in6_addr *saddr,
 	hash_generic((unsigned char *)hash, sizeof hash, saddr->s6_addr, IPV6_BYTES);
 	for (int i = 0; i < BLOOM_HASHES; i++) {
 		idx = hash[i] % BLOOM_SZ;
-		mld_timerjob_t tj = { .mld = mld, .iface = iface, .f = &mld_timer_set, .val = val };
 		if (vec_get_epi8(v, idx) != CHAR_MAX) vec_inc_epi8(v, idx);
-		tj.idx = idx;
-		job_push_new(mld->timerq, &mld_timer_job, &tj, sizeof tj, &free, JOB_COPY|JOB_FREE);
 	}
 	return 0;
 }
@@ -744,10 +526,6 @@ mld_t *mld_start(volatile int *cont)
 	if (cont) mld->cont = cont;
 	memcpy(mld->ifx, ifx, sizeof ifx);
 	mld->sock = sock;
-#if 0
-	mld_timerjob_t tj = { .mld = mld, .f = &mld_timer_ticker };
-	job_push_new(mld->timerq, &mld_timer_job, &tj, sizeof tj, &free, JOB_COPY|JOB_FREE);
-#endif
 	job_push_new(mld->timerq, &mld_listen_job, &mld, sizeof mld, &free, JOB_COPY|JOB_FREE);
 	return mld;
 exit_err_0:
