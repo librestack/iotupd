@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
-# Copyright (c) 2019 Brett Sheffield <brett@gladserv.com>
+# Copyright (c) 2019 Brett Sheffield <brett@librecast.net>
 
 PREFIX = /usr/local
 export PREFIX

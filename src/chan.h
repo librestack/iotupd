@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later 
+/* SPDX-License-Identifier: GPL-2.0-or-later
  * Copyright (c) 2021 Claudio Calvelli <clc@w42.org> */
 
 #ifndef __IOTD_CHAN_H__

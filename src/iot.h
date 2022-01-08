@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later 
- * Copyright (c) 2019-2021 Brett Sheffield <brett@gladserv.com> */
+/* SPDX-License-Identifier: GPL-2.0-only OR GPL-3.0-only */
+/* Copyright (c) 2019-2022 Brett Sheffield <brett@librecast.net> */
 
 #include <stdint.h>
 #include <sys/stat.h>
