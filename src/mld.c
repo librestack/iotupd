@@ -744,8 +744,10 @@ mld_t *mld_start(volatile int *cont)
 	if (cont) mld->cont = cont;
 	memcpy(mld->ifx, ifx, sizeof ifx);
 	mld->sock = sock;
+#if 0
 	mld_timerjob_t tj = { .mld = mld, .f = &mld_timer_ticker };
 	job_push_new(mld->timerq, &mld_timer_job, &tj, sizeof tj, &free, JOB_COPY|JOB_FREE);
+#endif
 	job_push_new(mld->timerq, &mld_listen_job, &mld, sizeof mld, &free, JOB_COPY|JOB_FREE);
 	return mld;
 exit_err_0:
