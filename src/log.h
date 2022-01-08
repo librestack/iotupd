@@ -23,6 +23,8 @@ enum {
 #define loglevel 127
 
 #define LOG(lvl, fmt, ...) if ((lvl & loglevel) == lvl) logmsg(lvl, fmt __VA_OPT__(,) __VA_ARGS__)
+#define DEBUG(fmt, ...) LOG(LOG_DEBUG, fmt ,##__VA_ARGS__)
+#define ERROR(fmt, ...) LOG(LOG_ERROR, fmt ,##__VA_ARGS__)
 
 void logmsg(unsigned int level, const char *fmt, ...);
 
