@@ -175,10 +175,10 @@ int thread_writer(void *arg)
 			bwrit += len;
 			//logmsg(LOG_DEBUG, "received: %lld bytes", (long long)bwrit);
 
-			if (maplen <= bwrit + binit) { /* enough data */
-				pthread_mutex_unlock(&dataready); /* begin checksumming */
-			}
 			msync(map, maplen, MS_ASYNC);
+		}
+		if (maplen <= bwrit + binit) { /* enough data */
+			pthread_mutex_unlock(&dataready); /* begin checksumming */
 		}
 	}
 
