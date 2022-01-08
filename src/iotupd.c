@@ -58,7 +58,7 @@ int main(int argc, char **argv)
 	struct iot_frame_t f;
 	struct timespec pkt_delay = { 0, };
 	const int on = 1;
-	int ifindex = 0, pkt_loop = 0;
+	unsigned ifindex = 0, pkt_loop = 0;
 	uint16_t len;
 
 	if (argc < 3 || argc > 5) {
