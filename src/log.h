@@ -20,7 +20,7 @@ enum {
 	LOG_LEVELS(LOG_ENUM)
 };
 
-#define loglevel 127
+#define loglevel 15
 
 #define LOG(lvl, fmt, ...) if ((lvl & loglevel) == lvl) logmsg(lvl, fmt __VA_OPT__(,) __VA_ARGS__)
 #define DEBUG(fmt, ...) LOG(LOG_DEBUG, fmt ,##__VA_ARGS__)

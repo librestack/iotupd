@@ -174,7 +174,7 @@ int main(int argc, char **argv)
 			}
 			f.len = htons(len);
 
-			logmsg(LOG_DEBUG, "sending %i - %i", i, (int)(i+f.len));
+			//logmsg(LOG_DEBUG, "sending %i - %i", i, (int)(i+f.len));
 
 			memcpy(f.data, map + i, len);
 
