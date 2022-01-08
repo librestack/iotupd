@@ -55,6 +55,8 @@ typedef enum {
 /* port (or service) to use for MLD event notifications */
 #define MLD_EVENT_SERV 4242
 
+#define aitoin6(ai) &(((struct sockaddr_in6 *)ai->ai_addr)->sin6_addr)
+
 typedef struct mld_s mld_t;
 typedef struct mld_addr_rec_s mld_addr_rec_t;
 typedef struct mld_filter_s mld_filter_t;

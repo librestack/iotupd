@@ -4,6 +4,7 @@
 #include "err.h"
 #include "iot.h"
 #include "log.h"
+#include "mld.h"
 #include "chan.h"
 #include <errno.h>
 #include <fcntl.h>
@@ -29,7 +30,8 @@
 static lc_ctx_t *ctx = NULL;
 static lc_socket_t *sock = NULL;
 static lc_channel_t *chan[MAX_CHANNELS] = {0};
-static int running = 1;
+static volatile int running = 1;
+static int mld_enabled;
 static int fd;
 static char *map;
 static struct stat sb;
@@ -60,6 +62,7 @@ int main(int argc, char **argv)
 	const int on = 1;
 	unsigned ifindex = 0, pkt_loop = 0;
 	uint16_t len;
+	mld_t *mld = NULL;
 
 	if (argc < 3 || argc > 6) {
 		fprintf(stderr, "usage: %s <file> <group> [<delay>] [<interface>] [--mld]\n", argv[0]);
@@ -97,6 +100,7 @@ int main(int argc, char **argv)
 		}
 		if (strlen(argv[argn]) == 5 && !strcmp(argv[argn], "--mld")) {
 			logmsg(LOG_DEBUG, "MLD triggering enabled");
+			mld_enabled = 1;
 			continue;
 		}
 		if (argc > argn) {
@@ -132,10 +136,21 @@ int main(int argc, char **argv)
 	/* calculate file hash */
 	hash_generic(f.hash, HASHSIZE, (unsigned char *)map, sb.st_size);
 
+	/* set up MLD trigger */
+	if (mld_enabled) {
+		mld = mld_start(&running);
+		if (!mld) {
+			ERROR("unable to start MLD (requires CAP_NET_RAW / root)");
+			_exit(EXIT_FAILURE);
+		}
+	}
+
 	unsigned long req = 0;
 	while (running) {
 		int channo = 0;
 		for (int i = 0; i <= sb.st_size && running; i += MTU_FIXED) {
+			DEBUG("got here");
+			mld_wait(mld, ifindex, lc_channel_in6addr(chan[0]));
 			/* don't overfill outbound send buffer */
 			while (1) {
 				int qlen;
@@ -159,7 +174,7 @@ int main(int argc, char **argv)
 			}
 			f.len = htons(len);
 
-			//logmsg(LOG_DEBUG, "sending %i - %i", i, (int)(i+f.len));
+			logmsg(LOG_DEBUG, "sending %i - %i", i, (int)(i+f.len));
 
 			memcpy(f.data, map + i, len);
 
@@ -171,6 +186,7 @@ int main(int argc, char **argv)
 			}
 		}
 	}
+	if (mld_enabled) mld_stop(mld);
 	terminate();
 
 	return 0;

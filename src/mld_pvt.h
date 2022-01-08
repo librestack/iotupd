@@ -12,8 +12,6 @@
 #define BUFSIZE 1500
 #define IFACE_MAX UCHAR_MAX
 
-#define aitoin6(ai) &(((struct sockaddr_in6 *)ai->ai_addr)->sin6_addr)
-
 typedef enum {
 	FILTER_MODE_INCLUDE = 1,
 	FILTER_MODE_EXCLUDE,

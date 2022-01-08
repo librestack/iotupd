@@ -350,15 +350,19 @@ int mld_wait(mld_t *mld, unsigned int ifx, struct in6_addr *addr)
 	inet_ntop(AF_INET6, addr, straddr, INET6_ADDRSTRLEN);
 	DEBUG("%s(ifx=%u): %s", __func__, ifx, straddr);
 #endif
+#if 0
 	if (!ifx) {
 		for (int i = 0; i < mld->len; i++) {
-			if (mld_filter_grp_cmp(mld, i, addr)) {
+			DEBUG("mld_filter_grp_cmp %i", i);
+			if (mld_filter_grp_cmp(mld, (unsigned)i, addr)) {
 				DEBUG("%s() - no need to wait - filter(%i) has address", __func__, i);
 				return 0;
 			}
 		}
 	}
 	else if (mld_filter_grp_cmp(mld, ifx, addr)) {
+#endif
+	if (mld_filter_grp_cmp(mld, 0, addr)) {
 		DEBUG("%s() - no need to wait - filter has address", __func__);
 		return 0;
 	}
