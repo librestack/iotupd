@@ -43,4 +43,4 @@ Brett Sheffield
 
 ## License
 
-This program is licensed under GPLv2 or any later version.
+This program is licensed under GPLv2 or (at your option) GPLv3.
