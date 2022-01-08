@@ -61,8 +61,8 @@ int main(int argc, char **argv)
 	unsigned ifindex = 0, pkt_loop = 0;
 	uint16_t len;
 
-	if (argc < 3 || argc > 5) {
-		fprintf(stderr, "usage: %s <file> <group> [<delay>] [<interface>]\n", argv[0]);
+	if (argc < 3 || argc > 6) {
+		fprintf(stderr, "usage: %s <file> <group> [<delay>] [<interface>] [--mld]\n", argv[0]);
 		return IOTD_ERROR_INVALID_ARGS;
 	}
 
@@ -89,17 +89,24 @@ int main(int argc, char **argv)
 		return IOTD_ERROR_INVALID_ARGS;
 	}
 
-	if (argc > 3) {
-		int argn = 3;
+	for (int argn = 3; argn < argc; argn++) {
 		/* is this a packet delay? */
-		if (sscanf(argv[argn], "%ld.%d", &pkt_delay.tv_nsec, &pkt_loop) >= 1)
-		    argn++;
+		if (sscanf(argv[argn], "%ld.%d", &pkt_delay.tv_nsec, &pkt_loop) >= 1) {
+			logmsg(LOG_DEBUG, "packet delay %ld.%d", pkt_delay.tv_nsec, pkt_loop);
+			continue;
+		}
+		if (strlen(argv[argn]) == 5 && !strcmp(argv[argn], "--mld")) {
+			logmsg(LOG_DEBUG, "MLD triggering enabled");
+			continue;
+		}
 		if (argc > argn) {
 			ifindex = if_nametoindex(argv[argn]);
+			logmsg(LOG_DEBUG, "binding to interface %s(%u)", argv[argn], ifindex);
 			if (ifindex == 0) {
 				logmsg(LOG_ERROR, "Interface '%s' not found", argv[argn]);
 				return IOTD_ERROR_IF_NODEV;
 			}
+			continue;
 		}
 	}
 
