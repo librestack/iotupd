@@ -44,6 +44,11 @@
 /* 9.14.1.  Robustness Variable */
 #define MLD2_ROBUSTNESS 2
 
+/* flags */
+enum {
+	MLD_DONTWAIT = 1
+};
+
 /* Event Types */
 typedef enum {
 	MLD_EVENT_JOIN = 1,
@@ -138,8 +143,15 @@ int mld_listen(mld_t *mld);
 /* query state */
 
 /* block until notification received for addr on interface index ifx. If ifx is
- * zero, all interfaces are watched */
-int mld_wait(mld_t *mld, unsigned int ifx, struct in6_addr *addr);
+ * zero, all interfaces are watched.  Returns 0 on success, or -1 on error and
+ * errno is set to indicate the error.
+ *
+ * The flags argument is formed by ORing one or more of the following values:
+ *
+ *  MLD_DONTWAIT
+ *      Enables  nonblocking  operation; if the operation would block, the call
+ *      fails with the error EWOULDBLOCK.*/
+int mld_wait(mld_t *mld, unsigned int ifx, struct in6_addr *addr, int flags);
 
 /* Allocate new watch on specifed interface ifx (0 = all interfaces), grp and
  * events.  Free with mld_watch_free()

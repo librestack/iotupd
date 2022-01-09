@@ -131,7 +131,7 @@ exit_err_0:
 }
 
 /* wait on a specific address */
-int mld_wait(mld_t *mld, unsigned int ifx, struct in6_addr *addr)
+int mld_wait(mld_t *mld, unsigned int ifx, struct in6_addr *addr, int flags)
 {
 #ifdef MLD_DEBUG
 	char straddr[INET6_ADDRSTRLEN];
@@ -153,6 +153,10 @@ int mld_wait(mld_t *mld, unsigned int ifx, struct in6_addr *addr)
 	if (mld_filter_grp_cmp(mld, 0, addr)) {
 		DEBUG("%s() - no need to wait - filter has address", __func__);
 		return 0;
+	}
+	if (flags &= MLD_DONTWAIT == MLD_DONTWAIT) {
+		errno = EWOULDBLOCK;
+		return -1;
 	}
 	return mld_wait_poll(mld, ifx, addr);
 }

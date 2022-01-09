@@ -5,6 +5,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
 #include "log.h"
 #include "misc.h"
 
@@ -12,7 +13,7 @@ void logmsg(unsigned int level, const char *fmt, ...)
 {
 	va_list argp;
 	char *b;
-
+	if (isatty(STDERR_FILENO)) return;
 	va_start(argp, fmt);
 	b = malloc(_vscprintf(fmt, argp) + 1);
 	assert(b != NULL);
@@ -21,4 +22,3 @@ void logmsg(unsigned int level, const char *fmt, ...)
 	fprintf(stderr, "%s\n", b);
 	free(b);
 }
-

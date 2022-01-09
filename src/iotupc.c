@@ -1,10 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR GPL-3.0-only */
 /* Copyright (c) 2019-2022 Brett Sheffield <brett@librecast.net> */
 
+#include "chan.h"
 #include "err.h"
 #include "iot.h"
 #include "log.h"
-#include "chan.h"
+#include "progress.h"
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -39,6 +40,9 @@ static uint64_t lost;  /* total lost packets */
 static uint64_t apkts; /* total packets since last adjustment */
 static uint64_t alost; /* packets lost since last adjustment */
 static uint16_t actchans; /* active receive channels */
+size_t byt_in;
+size_t byt_out;
+sem_t semprogress;
 
 void cleanup();
 void sigint_handler(int signo);
@@ -196,6 +200,7 @@ int main(int argc, char **argv)
 	struct sockaddr_in6 addr, a;
 	float pcloss;
 	int ret = 0, ifindex = 0;
+	pthread_t tid_progress;
 
 	if (argc < 3 || argc > 4) {
 		fprintf(stderr, "usage: %s <file> <group> [<interface>]\n", argv[0]);
@@ -236,6 +241,7 @@ int main(int argc, char **argv)
 	pthread_mutex_lock(&dataready);
 
 	/* start threads */
+	pthread_create(&tid_progress, NULL, progress_update, NULL);
 	pthread_create(&tchecksum, NULL, (void *)&thread_checksum, NULL);
 	pthread_create(&twriter, NULL, (void *)&thread_writer, argv[1]);
 
@@ -247,6 +253,8 @@ int main(int argc, char **argv)
 	pthread_cancel(twriter);
 	pthread_join(twriter, NULL);
 	pthread_mutex_destroy(&dataready);
+	pthread_cancel(tid_progress);
+	pthread_join(tid_progress, NULL);
 
 	pcloss = (pkts) ? (float)lost / (float)pkts * 100: 0.00f;
 	logmsg(LOG_DEBUG, "packets lost: %u / %llu (%0.2f %)", lost, pkts, pcloss);

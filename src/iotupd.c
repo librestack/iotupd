@@ -1,14 +1,16 @@
 /* SPDX-License-Identifier: GPL-2.0-only OR GPL-3.0-only */
 /* Copyright (c) 2019-2022 Brett Sheffield <brett@librecast.net> */
 
+#include "chan.h"
 #include "err.h"
 #include "iot.h"
 #include "log.h"
 #include "mld.h"
-#include "chan.h"
+#include "progress.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <librecast.h>
+#include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,16 +37,16 @@ static int mld_enabled;
 static int fd;
 static char *map;
 static struct stat sb;
+size_t byt_in;
+size_t byt_out;
+sem_t semprogress;
 
-void sigint_handler (int signo);
-void terminate();
-
-void sigint_handler (int signo)
+static void sigint_handler(int signo)
 {
 	running = 0;
 }
 
-void terminate()
+static void terminate()
 {
 	for (int i = 0; i < MAX_CHANNELS; i++) lc_channel_free(chan[i]);
 	lc_socket_close(sock);
@@ -62,7 +64,9 @@ int main(int argc, char **argv)
 	const int on = 1;
 	unsigned ifindex = 0, pkt_loop = 0;
 	uint16_t len;
+	ssize_t ret;
 	mld_t *mld = NULL;
+	pthread_t tid_progress;
 
 	if (argc < 3 || argc > 6) {
 		fprintf(stderr, "usage: %s <file> <group> [<delay>] [<interface>] [--mld]\n", argv[0]);
@@ -144,15 +148,18 @@ int main(int argc, char **argv)
 			_exit(EXIT_FAILURE);
 		}
 	}
+	pthread_create(&tid_progress, NULL, progress_update, NULL);
 
 	unsigned long req = 0;
 	while (running) {
 		int channo = 0;
 		for (int i = 0; i <= sb.st_size && running; i += MTU_FIXED) {
-			DEBUG("got here");
-			mld_wait(mld, ifindex, lc_channel_in6addr(chan[0]));
+			int rc;
+			int flags = (channo) ? MLD_DONTWAIT : 0; /* only block on primary channel */
+			/* only send if someone is listening */
+			rc = mld_wait(mld, ifindex, lc_channel_in6addr(chan[channo]), flags);
 			/* don't overfill outbound send buffer */
-			while (1) {
+			while (!rc) {
 				int qlen;
 				if (ioctl(lc_socket_raw(sock), TIOCOUTQ, &req) == -1)
 					break;
@@ -177,8 +184,10 @@ int main(int argc, char **argv)
 			//logmsg(LOG_DEBUG, "sending %i - %i", i, (int)(i+f.len));
 
 			memcpy(f.data, map + i, len);
-
-			lc_channel_send(chan[channo], &f, sizeof(f), 0);
+			if (!rc) {
+				ret = lc_channel_send(chan[channo], &f, sizeof(f), 0);
+				if (ret != -1) byt_out += (size_t)ret;
+			}
 			channo++;
 			if (channo >= MAX_CHANNELS) {
 				channo = 0;
@@ -186,6 +195,8 @@ int main(int argc, char **argv)
 			}
 		}
 	}
+	pthread_cancel(tid_progress);
+	pthread_join(tid_progress, NULL);
 	if (mld_enabled) mld_stop(mld);
 	terminate();
 
