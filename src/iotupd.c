@@ -37,6 +37,7 @@ static int mld_enabled;
 static int fd;
 static char *map;
 static struct stat sb;
+size_t maplen;
 size_t byt_in;
 size_t byt_out;
 sem_t semprogress;

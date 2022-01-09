@@ -30,7 +30,6 @@ static pthread_mutex_t dataready;
 static int complete = 0;
 static int fd = 0;
 static char *map = NULL;
-static size_t maplen = 0;
 static unsigned char filehash[HASHSIZE];
 static lc_ctx_t *ctx = NULL;
 static lc_socket_t * sock = NULL;
@@ -40,6 +39,7 @@ static uint64_t lost;  /* total lost packets */
 static uint64_t apkts; /* total packets since last adjustment */
 static uint64_t alost; /* packets lost since last adjustment */
 static uint16_t actchans; /* active receive channels */
+size_t maplen;
 size_t byt_in;
 size_t byt_out;
 sem_t semprogress;
@@ -79,7 +79,7 @@ int thread_checksum(void *arg)
 	while (!complete) {
 		pthread_mutex_lock(&dataready); /* wait here until writer says go */
 		hash_generic(fhash, HASHSIZE, (unsigned char *)map, maplen);
-
+#if 0
 		for (int i = 0; i < HASHSIZE; ++i) {
 			printf("%02x", (unsigned char)fhash[i]);
 		}
@@ -88,6 +88,7 @@ int thread_checksum(void *arg)
 			printf("%02x", (unsigned char)filehash[i]);
 		}
 		printf("\n");
+#endif
 
 		if (memcmp(fhash, filehash, HASHSIZE) == 0) break;
 	}
@@ -184,6 +185,7 @@ int thread_writer(void *arg)
 		if (maplen <= bwrit + binit) { /* enough data */
 			pthread_mutex_unlock(&dataready); /* begin checksumming */
 		}
+		byt_in = bwrit;
 	}
 
 exit_writer:

@@ -30,6 +30,7 @@ typedef struct iot_frame_t {
 	char 		data[MTU_FIXED];		/* data */
 } __attribute__((__packed__)) iot_frame_t;
 
+extern size_t maplen;
 extern size_t byt_in;
 extern size_t byt_out;
 extern sem_t semprogress;
