@@ -257,6 +257,7 @@ int main(int argc, char **argv)
 	pthread_mutex_destroy(&dataready);
 	pthread_cancel(tid_progress);
 	pthread_join(tid_progress, NULL);
+	if (byt_in) putchar('\n');
 
 	pcloss = (pkts) ? (float)lost / (float)pkts * 100: 0.00f;
 	logmsg(LOG_DEBUG, "packets lost: %u / %llu (%0.2f %)", lost, pkts, pcloss);
