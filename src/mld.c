@@ -119,6 +119,7 @@ static int mld_wait_poll(mld_t *mld, unsigned int ifx, struct in6_addr *addr)
 		goto exit_err_1;
 	}
 	fds.fd = lc_socket_raw(sock);
+	if (mld_filter_grp_cmp(mld, 0, addr)) return 0; /* prevent race */
 	while (!(rc = poll(&fds, 1, timeout)) && (*(mld->cont)));
 
 	if (rc > 0) DEBUG("%s() notify received", __func__);
