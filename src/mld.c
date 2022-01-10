@@ -479,13 +479,14 @@ mld_t *mld_init(int ifaces)
 	return mld;
 }
 
-mld_t *mld_start(volatile int *cont)
+mld_t *mld_start(volatile int *cont, unsigned int iface)
 {
 	mld_t *mld = NULL;
 	struct ifaddrs *ifaddr = NULL;
 	struct ipv6_mreq req = {0};
 	const int opt = 1;
 	unsigned int ifx[IFACE_MAX] = {0};
+	unsigned int idx;
 	int joins = 0;
 	int sock = socket(AF_INET6, SOCK_RAW, IPPROTO_ICMPV6);
 	if (sock == -1) {
@@ -506,22 +507,35 @@ mld_t *mld_start(volatile int *cont)
 	}
 	/* join MLD2 ROUTERS group on all IPv6 multicast-capable interfaces */
 	for (struct ifaddrs *ifa = ifaddr; ifa; ifa = ifa->ifa_next) {
-		if (ifa->ifa_addr->sa_family !=AF_INET6)
+		idx = if_nametoindex(ifa->ifa_name);
+		fprintf(stderr, "trying %s (%u)", ifa->ifa_name, idx);
+		if (iface && iface != idx) {
+			fprintf(stderr, " - wrong iface\n");
 			continue;
-		if ((ifa->ifa_flags & IFF_MULTICAST) != IFF_MULTICAST)
+		}
+		if (ifa->ifa_addr->sa_family !=AF_INET6) {
+			fprintf(stderr, " - not IPv6\n");
 			continue;
-		if (!(req.ipv6mr_interface = if_nametoindex(ifa->ifa_name)))
+		}
+		if ((ifa->ifa_flags & IFF_MULTICAST) != IFF_MULTICAST) {
+			fprintf(stderr, " - not multicast capable\n");
 			continue;
+		}
+		fputc('\n', stderr);
 		if (!setsockopt(sock, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP, &req, sizeof(req))) {
-			unsigned int idx = if_nametoindex(ifa->ifa_name);
-			DEBUG("listening on interface %s (%u)", ifa->ifa_name, idx);
+			fprintf(stderr, "MLD listening on interface %s (%u)\n", ifa->ifa_name, idx);
 			if (!idx) perror("if_nametoindex()"); assert(idx);
 			ifx[joins++] = idx;
+			if (iface) break;
+		}
+		else {
+			perror("setsockopt");
+			fprintf(stderr, "failed to join on %s (%u)\n", ifa->ifa_name, idx);
 		}
 	}
 	freeifaddrs(ifaddr);
 	if (!joins) {
-		ERROR("Unable to join on any interfaces");
+		fprintf(stderr, "Unable to join on any interfaces\n");
 		goto exit_err_0;
 	}
 	DEBUG("%s() listening on %i interfaces", __func__, joins);

@@ -143,7 +143,7 @@ int main(int argc, char **argv)
 
 	/* set up MLD trigger */
 	if (mld_enabled) {
-		mld = mld_start(&running);
+		mld = mld_start(&running, ifindex);
 		if (!mld) {
 			ERROR("unable to start MLD (requires CAP_NET_RAW / root)");
 			_exit(EXIT_FAILURE);
@@ -155,10 +155,12 @@ int main(int argc, char **argv)
 	while (running) {
 		int channo = 0;
 		for (int i = 0; i <= sb.st_size && running; i += MTU_FIXED) {
-			int rc;
+			int rc = 0;
 			int flags = (channo) ? MLD_DONTWAIT : 0; /* only block on primary channel */
 			/* only send if someone is listening */
-			rc = mld_wait(mld, ifindex, lc_channel_in6addr(chan[channo]), flags);
+			if (mld_enabled) {
+				rc = mld_wait(mld, ifindex, lc_channel_in6addr(chan[channo]), flags);
+			}
 			/* don't overfill outbound send buffer */
 			while (!rc) {
 				int qlen;
