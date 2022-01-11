@@ -203,7 +203,7 @@ static void mld_notify_send(mld_t *mld, unsigned iface, struct in6_addr *grp, in
 	/* set TTL to 1 so notification doesn't leave local segment */
 	lc_socket_ttl(sock, 1);
 
-	if (iface) lc_socket_bind(sock, mld->ifx[iface]);
+	lc_socket_bind(sock, mld->ifx[iface]);
 	lc_channel_bind(sock, chan);
 	lc_channel_send(chan, pi, sizeof(struct in6_pktinfo), 0);
 	lc_socket_close(sock);
@@ -536,6 +536,7 @@ mld_t *mld_start(volatile int *cont, unsigned int iface, const struct sockaddr_i
 			continue;
 		}
 		fputc('\n', stderr);
+		req.ipv6mr_interface = idx;
 		if (!setsockopt(sock, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP, &req, sizeof(req))) {
 			fprintf(stderr, "MLD listening on interface %s (%u)\n", ifa->ifa_name, idx);
 			if (!idx) perror("if_nametoindex()"); assert(idx);
