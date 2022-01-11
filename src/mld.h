@@ -88,7 +88,7 @@ mld_t *mld_init(int ifaces);
 void mld_free(mld_t *mld);
 
 /* start MLD snooping. will stop when *cont zero (pass NULL to ignore) */
-mld_t *mld_start(volatile int *cont, unsigned int iface);
+mld_t *mld_start(volatile int *cont, unsigned int iface, const struct sockaddr_in6 *addr);
 
 /* stop MLD snooping */
 void mld_stop(mld_t *mld);

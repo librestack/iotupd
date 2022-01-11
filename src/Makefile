@@ -5,7 +5,7 @@ PROGRAM:=iotup
 CLIENT:=$(PROGRAM)c
 SERVER:=$(PROGRAM)d
 OBJECTS:=chan.o err.o job.o log.o misc.o mld.o progress.o vec.o
-LIBS:=-llibrecast -pthread
+LIBS:=-llibrecast -pthread -llwmon
 
 .PHONY:		all clean realclean
 

@@ -43,6 +43,9 @@ struct mld_s {
 	int len;
 	/* iface -> interface_idx mapping */
 	unsigned int ifx[IFACE_MAX];
+	/* interface and address for which we log join/part events */
+	unsigned int log_ifnumber;
+	const struct sockaddr_in6 *log_addr;
 	/* counted bloom filter for groups gives us O(1) for insert/query/delete 
 	 * combined with a bloom timer (is that a thing, or did I just make it
 	 * up?) - basically a counted bloom filter where the max is set to the

@@ -27,5 +27,6 @@ enum {
 #define ERROR(fmt, ...) LOG(LOG_ERROR, fmt ,##__VA_ARGS__)
 
 void logmsg(unsigned int level, const char *fmt, ...);
+void lwmon_log(const char * who, const char * what);
 
 #endif /* __IOTD_LOG */

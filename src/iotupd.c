@@ -120,6 +120,7 @@ int main(int argc, char **argv)
 	}
 
 	signal(SIGINT, sigint_handler);
+	signal(SIGTERM, sigint_handler);
 
 	ctx = lc_ctx_new();
 	sock = lc_socket_new(ctx);
@@ -141,9 +142,12 @@ int main(int argc, char **argv)
 	/* calculate file hash */
 	hash_generic(f.hash, HASHSIZE, (unsigned char *)map, sb.st_size);
 
+	/* ready to go, tell lwmon */
+	lwmon_log("server_multicast", "start");
+
 	/* set up MLD trigger */
 	if (mld_enabled) {
-		mld = mld_start(&running, ifindex);
+		mld = mld_start(&running, ifindex, &addr);
 		if (!mld) {
 			ERROR("unable to start MLD (requires CAP_NET_RAW / root)");
 			_exit(EXIT_FAILURE);
@@ -201,6 +205,7 @@ int main(int argc, char **argv)
 	pthread_cancel(tid_progress);
 	pthread_join(tid_progress, NULL);
 	if (mld_enabled) mld_stop(mld);
+	lwmon_log("server_multicast", "end");
 	terminate();
 
 	return 0;

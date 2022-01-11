@@ -271,6 +271,19 @@ static int mld_filter_grp_call(mld_t *mld, unsigned int iface, struct in6_addr *
 		if ((rc = f(mld, iface, idx, v))) break; /* error or found */
 		if (f == &mld_filter_timer_get_f) break; /* use first result for timer */
 	}
+	if (!rc && (mld->log_ifnumber == 0 || mld->log_ifnumber == mld->ifx[iface])) {
+		int isadd = f == mld_filter_grp_add_f;
+		int isdel = f == mld_filter_grp_del_f;
+		if (isadd || isdel) {
+			int i;
+			for (i = 0;
+			     i < 16 && saddr->s6_addr[i] == mld->log_addr->sin6_addr.s6_addr[i];
+			     i++)
+				;
+			if (i == 16)
+				lwmon_log("server_multicast", isadd ? "request" : "done");
+		}
+	}
 	if (!rc && notify) mld_notify(mld, iface, saddr, notify);
 	return rc;
 }
@@ -480,7 +493,7 @@ mld_t *mld_init(int ifaces)
 	return mld;
 }
 
-mld_t *mld_start(volatile int *cont, unsigned int iface)
+mld_t *mld_start(volatile int *cont, unsigned int iface, const struct sockaddr_in6 *addr)
 {
 	mld_t *mld = NULL;
 	struct ifaddrs *ifaddr = NULL;
@@ -545,6 +558,8 @@ mld_t *mld_start(volatile int *cont, unsigned int iface)
 	if (cont) mld->cont = cont;
 	memcpy(mld->ifx, ifx, sizeof ifx);
 	mld->sock = sock;
+	mld->log_ifnumber = iface;
+	mld->log_addr = addr;
 	job_push_new(mld->timerq, &mld_listen_job, &mld, sizeof mld, &free, JOB_COPY|JOB_FREE);
 	return mld;
 exit_err_0:

@@ -238,6 +238,9 @@ int main(int argc, char **argv)
 		lc_channel_join(chan[actchans++]);
 	}
 
+	/* ready to go, tell lwmon */
+	lwmon_log("client_multicast", "start");
+
 	/* checksum thread will not start until this mutex released */
 	pthread_mutex_init(&dataready, NULL);
 	pthread_mutex_lock(&dataready);
@@ -261,6 +264,7 @@ int main(int argc, char **argv)
 
 	pcloss = (pkts) ? (float)lost / (float)pkts * 100: 0.00f;
 	logmsg(LOG_DEBUG, "packets lost: %u / %llu (%0.2f %)", lost, pkts, pcloss);
+	lwmon_log("client_multicast", "end");
 	cleanup();
 
 	return ret;
